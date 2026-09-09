@@ -337,6 +337,16 @@ test('stripContextSuffix removes parenthetical context-window info', () => {
   assert.equal(stripContextSuffix(''), '');
 });
 
+test('stripContextSuffix removes bracketed context-window suffixes', () => {
+  assert.equal(stripContextSuffix('deepseek-v4.1-flash-expires-on-0910[1m]'), 'deepseek-v4.1-flash-expires-on-0910');
+  assert.equal(stripContextSuffix('Model [1M]'), 'Model');
+  assert.equal(stripContextSuffix('Model[200k]'), 'Model');
+  // Preserves bracketed suffixes that are not a size
+  assert.equal(stripContextSuffix('Model [beta]'), 'Model [beta]');
+  // Only the trailing suffix is stripped
+  assert.equal(stripContextSuffix('[1m] Model'), '[1m] Model');
+});
+
 test('formatModelName full mode returns name unchanged', () => {
   assert.equal(formatModelName('Opus 4.6 (1M context)', 'full'), 'Opus 4.6 (1M context)');
   assert.equal(formatModelName('Claude Sonnet 3.5', 'full'), 'Claude Sonnet 3.5');
