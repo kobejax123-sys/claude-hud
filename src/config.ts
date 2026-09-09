@@ -114,6 +114,9 @@ export type HudColorValue = HudColorName | number | string;
 
 export interface HudColorOverrides {
   context: HudColorValue;
+  // Colors the token parenthetical of `contextValue: "both"` on its own.
+  // null keeps it on the context health color, as before.
+  contextTokens: HudColorValue | null;
   usage: HudColorValue;
   warning: HudColorValue;
   usageWarning: HudColorValue;
@@ -396,6 +399,7 @@ export const DEFAULT_CONFIG: HudConfig = {
   },
   colors: {
     context: 'green',
+    contextTokens: null,
     usage: 'brightBlue',
     warning: 'yellow',
     usageWarning: 'brightMagenta',
@@ -1006,6 +1010,9 @@ export function mergeConfig(userConfig: Partial<HudConfig>): HudConfig {
     context: validateColorValue(migrated.colors?.context)
       ? migrated.colors.context
       : DEFAULT_CONFIG.colors.context,
+    contextTokens: validateColorValue(migrated.colors?.contextTokens)
+      ? migrated.colors.contextTokens
+      : null,
     usage: validateColorValue(migrated.colors?.usage)
       ? migrated.colors.usage
       : DEFAULT_CONFIG.colors.usage,

@@ -1,4 +1,4 @@
-import type { HudColorName, HudColorValue, HudColorOverrides } from '../config.js';
+import type { ContextValueMode, HudColorName, HudColorValue, HudColorOverrides } from '../config.js';
 
 export const RESET = '\x1b[0m';
 
@@ -35,7 +35,7 @@ function hexToAnsi(hex: string): string {
  * Resolve a color value to an ANSI escape sequence.
  * Accepts named presets, 256-color indices (0-255), or hex strings (#rrggbb).
  */
-function resolveAnsi(value: HudColorValue | undefined, fallback: string): string {
+function resolveAnsi(value: HudColorValue | null | undefined, fallback: string): string {
   if (value === undefined || value === null) {
     return fallback;
   }
@@ -131,6 +131,28 @@ export function getContextColor(
   if (percent >= critical) return resolveAnsi(colors?.critical, RED);
   if (percent >= warning) return resolveAnsi(colors?.warning, YELLOW);
   return resolveAnsi(colors?.context, GREEN);
+}
+
+/**
+ * Color a formatted context value. The health color covers the percentage and
+ * the bar; `colors.contextTokens`, when set, takes over the token parenthetical
+ * produced by `contextValue: "both"` so it reads as secondary information.
+ */
+export function colorizeContextValue(
+  value: string,
+  percent: number,
+  mode: ContextValueMode,
+  colors?: Partial<HudColorOverrides>,
+  thresholds?: ContextThresholds,
+): string {
+  const healthColor = getContextColor(percent, colors, thresholds);
+  const splitAt = mode === 'both' ? value.indexOf(' (') : -1;
+  const detailValue = colors?.contextTokens;
+  if (splitAt < 0 || detailValue === undefined || detailValue === null) {
+    return colorize(value, healthColor);
+  }
+  const detailColor = resolveAnsi(detailValue, healthColor);
+  return `${colorize(value.slice(0, splitAt), healthColor)} ${colorize(value.slice(splitAt + 1), detailColor)}`;
 }
 
 export function getQuotaColor(percent: number, colors?: Partial<HudColorOverrides>): string {

@@ -3,7 +3,7 @@ import {
   getContextPercent,
   getBufferedPercent,
 } from "../../stdin.js";
-import { coloredBar, label, getContextColor, RESET } from "../colors.js";
+import { coloredBar, colorizeContextValue, label } from "../colors.js";
 import { getAdaptiveBarWidth } from "../../utils/terminal.js";
 import { t } from "../../i18n/index.js";
 import {
@@ -38,8 +38,13 @@ export function renderIdentityLine(
     critical: display?.contextCriticalThreshold,
   };
   const contextValueMode = display?.contextValue ?? "percent";
-  const contextValue = formatContextValue(ctx, percent, contextValueMode);
-  const contextValueDisplay = `${getContextColor(percent, colors, contextThresholds)}${contextValue}${RESET}`;
+  const contextValueDisplay = colorizeContextValue(
+    formatContextValue(ctx, percent, contextValueMode),
+    percent,
+    contextValueMode,
+    colors,
+    contextThresholds,
+  );
 
   let line =
     display?.showContextBar !== false

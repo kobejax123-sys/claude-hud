@@ -2,7 +2,7 @@ import type { RenderContext } from '../types.js';
 import { isLimitReached } from '../types.js';
 import { getContextPercent, getBufferedPercent, getModelName, formatModelName, resolveModelName, shouldHideUsage } from '../stdin.js';
 import { getOutputSpeed } from '../speed-tracker.js';
-import { coloredBar, critical, git as gitColor, gitBranch as gitBranchColor, label, model as modelColor, project as projectColor, getContextColor, getQuotaColor, quotaBar, custom as customColor, RESET } from './colors.js';
+import { coloredBar, colorizeContextValue, critical, git as gitColor, gitBranch as gitBranchColor, label, model as modelColor, project as projectColor, getQuotaColor, quotaBar, custom as customColor, RESET } from './colors.js';
 import { getAdaptiveBarWidth } from '../utils/terminal.js';
 import { renderCostEstimate } from './lines/cost.js';
 import { renderCacheHitSegment } from './lines/cache-hit.js';
@@ -61,8 +61,13 @@ export function renderSessionLine(ctx: RenderContext): string {
   };
   const resetsKey = timeFormat === 'absolute' ? 'format.resets' : 'format.resetsIn';
   const contextValueMode = display?.contextValue ?? 'percent';
-  const contextValue = formatContextValue(ctx, percent, contextValueMode);
-  const contextValueDisplay = `${getContextColor(percent, colors, contextThresholds)}${contextValue}${RESET}`;
+  const contextValueDisplay = colorizeContextValue(
+    formatContextValue(ctx, percent, contextValueMode),
+    percent,
+    contextValueMode,
+    colors,
+    contextThresholds,
+  );
 
   const customLine = display?.customLine;
   const customLinePosition = display?.customLinePosition ?? 'last';
