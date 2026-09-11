@@ -167,7 +167,7 @@ Claude Code → stdin JSON → claude-hud → stdout → 在终端中显示
 | `maxWidth` | number \| `null` | `null` | 可选的回退宽度，仅在终端宽度检测完全失败时使用 |
 | `forceMaxWidth` | boolean | false | 当设置了 `maxWidth` 时始终使用它，即使终端宽度检测返回更小的值 |
 | `elementOrder` | string[] | `["project","context","usage","promptCache","memory","environment","tools","agents","todos","sessionTime"]` | 展开模式下元素的顺序。省略的条目在展开模式下隐藏。现有配置会保留其显式顺序直到更新 |
-| `projectLineOrder` | string[] | `[]` | 可选的首行片段前置顺序，适用于两种布局。可见性仍由 `display.show*` 控制；省略的片段保持渲染器原有顺序。例如 `["project","model"]` 会将项目和 Git 放到模型徽标之前 |
+| `projectLineOrder` | string[] | `[]` | 可选的首行片段前置顺序，适用于两种布局。可见性仍由 `display.show*` 控制；省略的片段保持渲染器原有顺序；`cacheHit` 为 prompt cache 命中率片段。例如 `["project","model"]` 会将项目和 Git 放到模型徽标之前 |
 | `display.mergeGroups` | string[][] | `[["context","usage"]]` | 展开模式下相邻时应共享一行的元素分组。设为 `[]` 可禁用合并行 |
 | `display.rightAlign` | string[] | `[]` | 以合并行中第一个列出的元素作为右对齐后缀的起点，保持 `elementOrder` 并用空格填充间隔。锚点必须位于实际合并渲染的 `display.mergeGroups` 分组中。终端宽度未知、锚点位于首位或空间不足时回退到普通的 ` │ ` 连接。示例：分组为 `["project","context","usage"]` 时设为 `["context"]`，项目/git 保持在左侧，context 与 usage 靠右对齐。 |
 | `gitStatus.enabled` | boolean | true | 在 HUD 中显示 git 分支 |
@@ -232,6 +232,8 @@ Claude Code → stdin JSON → claude-hud → stdout → 在终端中显示
 | `display.showMemoryUsage` | boolean | false | 在展开布局中显示近似系统 RAM 使用行 |
 | `display.showPromptCache` | boolean | false | 显示 prompt cache 的过期时刻，数据来自 transcript |
 | `display.promptCacheTtlSeconds` | number | `300` | 仅当 transcript 尚未报告 5 分钟或 1 小时缓存层级时使用的兼容回退值 |
+| `display.showCacheHit` | boolean | false | 显示最近一次请求的 prompt cache 命中率，例如 `CacheHit 82.3%`。口径为缓存读取 / 该请求的全部输入；命中率未知时显示 `CacheHit --` |
+| `display.cacheHitPlacement` | `firstLine` \| `stats` | `firstLine` | 命中率片段的位置。`firstLine` 放首行，可用 `projectLineOrder` 调整；`stats` 挪到追加的统计行，与压缩次数并排 |
 | `colors.context` | 颜色值 | `green` | 上下文进度条和百分比的基础颜色 |
 | `colors.usage` | 颜色值 | `brightBlue` | 使用率进度条和低于警告阈值时百分比的颜色 |
 | `colors.warning` | 颜色值 | `yellow` | 上下文阈值和使用率警告文本的警告颜色 |
@@ -265,6 +267,8 @@ ClaudeHUD 会尽可能从 transcript 检测缓存层级。对于不提供层级�
 - **TTL 是检测出来的。** 每次缓存写入都会记录所用的层级（`usage.cache_creation.ephemeral_5m_input_tokens` 与 `ephemeral_1h_input_tokens`），因此 1 小时的会话按 1 小时计时，中途更换层级的会话也会被跟随。检测值优先于配置的回退值。
 - **计时从请求开始**，而不是从它产生的响应开始，因为缓存是在请求时被读取或写入的。若以响应为基准，会把生成该响应所用的时间也算作可用时间。
 - **忽略 subagent 响应。** subagent 使用自己的缓存，不会刷新主会话的缓存。
+
+`display.showCacheHit` 是另一个独立开关，展示的是另一件事：**最近一次请求的输入中来自缓存的占比**，例如 `CacheHit 82.3%`。口径为 `cache_read / (input_tokens + cache_creation_input_tokens + cache_read_input_tokens)`。把整个输入算进分母很关键：部分兼容 Anthropic 格式的接口从不报告缓存写入（`cache_creation_input_tokens` 恒为 0），若分母只取缓存读写，命中率会永远锁死在 100%。只写入缓存、未读取缓存的请求显示 `CacheHit 0.0%`；完全没有缓存活动（或会话尚未发出请求）时显示 dim 色的 `CacheHit --` 占位，片段不会整段消失，槽位从第一帧起就稳定。它作为 `cacheHit` 片段渲染在首行，可通过 `projectLineOrder` 调整位置；把 `display.cacheHitPlacement` 设为 `stats` 可以改放到追加的统计行，与压缩次数并排。
 
 ### 使用率限制
 

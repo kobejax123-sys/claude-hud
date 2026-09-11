@@ -17,6 +17,7 @@ export type LineLayoutType = 'compact' | 'expanded';
 export type AutocompactBufferMode = 'enabled' | 'disabled';
 export type ContextValueMode = 'percent' | 'tokens' | 'remaining' | 'both';
 export type UsageValueMode = 'percent' | 'remaining';
+export type CacheHitPlacement = 'firstLine' | 'stats';
 export type GitBranchOverflowMode = 'truncate' | 'wrap';
 
 /**
@@ -74,6 +75,7 @@ export type HudElement =
  *   model:       provider + model badge + effort (compact mode also keeps the
  *                context bar attached to this segment)
  *   project:     project path + added dirs + git status (kept as one segment)
+ *   cacheHit:    prompt cache hit rate of the most recent request
  *   advisor:     advisor model label
  *   sessionName: session title from /rename
  *   version:     Claude Code version
@@ -86,6 +88,7 @@ export type HudElement =
 export type FirstLineSegment =
   | 'model'
   | 'project'
+  | 'cacheHit'
   | 'advisor'
   | 'sessionName'
   | 'version'
@@ -148,6 +151,7 @@ export const DEFAULT_MERGE_GROUPS: HudElement[][] = [
 const PROJECT_LINE_SEGMENTS: FirstLineSegment[] = [
   'model',
   'project',
+  'cacheHit',
   'advisor',
   'sessionName',
   'version',
@@ -235,6 +239,10 @@ export interface HudConfig {
     effortFormat: EffortFormatMode;
     showMemoryUsage: boolean;
     showPromptCache: boolean;
+    showCacheHit: boolean;
+    // Where the cache hit segment renders: on the first line (default) or on
+    // the appended stats line next to the compaction count.
+    cacheHitPlacement: CacheHitPlacement;
     // Compatibility fallback used only until transcript tier detection has a
     // real 5-minute or 1-hour cache write to follow.
     promptCacheTtlSeconds: number;
@@ -353,6 +361,8 @@ export const DEFAULT_CONFIG: HudConfig = {
     effortFormat: 'full',
     showMemoryUsage: false,
     showPromptCache: false,
+    showCacheHit: false,
+    cacheHitPlacement: 'firstLine',
     promptCacheTtlSeconds: 300,
     showSessionTokens: false,
     showOutputStyle: false,
@@ -442,6 +452,10 @@ function validateContextValue(value: unknown): value is ContextValueMode {
 
 function validateUsageValue(value: unknown): value is UsageValueMode {
   return value === 'percent' || value === 'remaining';
+}
+
+function validateCacheHitPlacement(value: unknown): value is CacheHitPlacement {
+  return value === 'firstLine' || value === 'stats';
 }
 
 function validateLanguage(value: unknown): value is Language {
@@ -888,6 +902,12 @@ export function mergeConfig(userConfig: Partial<HudConfig>): HudConfig {
     showPromptCache: typeof migrated.display?.showPromptCache === 'boolean'
       ? migrated.display.showPromptCache
       : DEFAULT_CONFIG.display.showPromptCache,
+    showCacheHit: typeof migrated.display?.showCacheHit === 'boolean'
+      ? migrated.display.showCacheHit
+      : DEFAULT_CONFIG.display.showCacheHit,
+    cacheHitPlacement: validateCacheHitPlacement(migrated.display?.cacheHitPlacement)
+      ? migrated.display.cacheHitPlacement
+      : DEFAULT_CONFIG.display.cacheHitPlacement,
     promptCacheTtlSeconds: validateDurationSeconds(
       migrated.display?.promptCacheTtlSeconds,
       DEFAULT_CONFIG.display.promptCacheTtlSeconds,

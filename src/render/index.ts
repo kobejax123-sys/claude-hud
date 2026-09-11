@@ -16,7 +16,7 @@ import {
   renderUsageLine,
   renderMemoryLine,
   renderSessionTokensLine,
-  renderCompactionsLine,
+  renderStatsLine,
   renderSessionTimeLine,
 } from './lines/index.js';
 import { dim, RESET } from './colors.js';
@@ -611,10 +611,11 @@ export function render(ctx: RenderContext): void {
       }
     }
 
-    // Compaction count (opt-in, hidden until the first compaction)
-    const compactionsLine = renderCompactionsLine(ctx);
-    if (compactionsLine) {
-      lines.push(compactionsLine);
+    // Stats line: compaction count, plus the cache hit rate when it is
+    // configured to render here instead of the first line.
+    const statsLine = renderStatsLine(ctx);
+    if (statsLine) {
+      lines.push(statsLine);
     }
 
     // Advisor is rendered inline on the project line; see renderProjectLine.

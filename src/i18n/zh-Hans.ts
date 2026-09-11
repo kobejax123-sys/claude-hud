@@ -17,6 +17,7 @@ export const zhHans: Messages = {
   "label.lastReply": "上次回复",
   "label.advisor": "顾问",
   "label.compactions": "压缩次数",
+  "label.cacheHit": "缓存命中",
 
   // Status
   "status.limitReached": "已达上限",

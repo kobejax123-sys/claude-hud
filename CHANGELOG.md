@@ -7,6 +7,9 @@ All notable changes to Claude HUD will be documented in this file.
 ### Added
 - `display.showDailyCost` option to show today's cumulative spend across sessions (`Today $12.34`), accumulated from the native stdin `cost.total_cost_usd` into a per-day ledger that resets at local midnight (#695).
 
+### Changed
+- Show a dim `CacheHit --` placeholder until the cache hit rate is known, instead of hiding the segment, so the slot stays put from the first frame of a session.
+
 ### Fixed
 - Refresh the prompt-cache clock when a request starts rather than when its response arrives, ignoring client-side slash command records, interrupt markers, and subagent requests (#719).
 - Treat Agent `tool_result` payloads with `isAsync` or `status: async_launched` as background so the agents line stays up until the task-notification (#734).

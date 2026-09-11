@@ -5,6 +5,7 @@ import { getOutputSpeed } from '../speed-tracker.js';
 import { coloredBar, critical, git as gitColor, gitBranch as gitBranchColor, label, model as modelColor, project as projectColor, getContextColor, getQuotaColor, quotaBar, custom as customColor, RESET } from './colors.js';
 import { getAdaptiveBarWidth } from '../utils/terminal.js';
 import { renderCostEstimate } from './lines/cost.js';
+import { renderCacheHitSegment } from './lines/cache-hit.js';
 import { renderPromptCacheLine } from './lines/prompt-cache.js';
 import { renderSessionTimeLine } from './lines/session-time.js';
 import { renderAdvisorLine } from './lines/advisor.js';
@@ -140,6 +141,13 @@ export function renderSessionLine(ctx: RenderContext): string {
     push(projectPart, 'project');
   } else if (gitPart) {
     push(gitPart, 'project');
+  }
+
+  if (display?.cacheHitPlacement !== 'stats') {
+    const cacheHitPart = renderCacheHitSegment(ctx);
+    if (cacheHitPart) {
+      push(cacheHitPart, 'cacheHit');
+    }
   }
 
   // Session name (custom title from /rename, or auto-generated slug)
@@ -333,6 +341,15 @@ export function renderSessionLine(ctx: RenderContext): string {
     const summary = formatSessionTokenSummary(ctx.transcript.sessionTokens, `${t('format.tok')}:`);
     if (summary) {
       push(label(summary, colors));
+    }
+  }
+
+  // Compact layout has no separate stats line, so a "stats" placement keeps
+  // the cache hit segment on this line, next to the compaction count.
+  if (display?.cacheHitPlacement === 'stats') {
+    const cacheHitPart = renderCacheHitSegment(ctx);
+    if (cacheHitPart) {
+      push(cacheHitPart);
     }
   }
 

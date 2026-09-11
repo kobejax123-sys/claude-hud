@@ -17,6 +17,7 @@ export const zhHant: Messages = {
   "label.lastReply": "上次回覆",
   "label.advisor": "顧問",
   "label.compactions": "壓縮次數",
+  "label.cacheHit": "快取命中",
 
   // Status
   "status.limitReached": "已達上限",
