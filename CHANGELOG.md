@@ -7,9 +7,6 @@ All notable changes to Claude HUD will be documented in this file.
 ### Added
 - `display.showDailyCost` option to show today's cumulative spend across sessions (`Today $12.34`), accumulated from the native stdin `cost.total_cost_usd` into a per-day ledger that resets at local midnight (#695).
 
-### Changed
-- Show a dim `CacheHit --` placeholder until the cache hit rate is known, instead of hiding the segment, so the slot stays put from the first frame of a session.
-
 ### Fixed
 - Refresh the prompt-cache clock when a request starts rather than when its response arrives, ignoring client-side slash command records, interrupt markers, and subagent requests (#719).
 - Treat Agent `tool_result` payloads with `isAsync` or `status: async_launched` as background so the agents line stays up until the task-notification (#734).
@@ -18,6 +15,39 @@ All notable changes to Claude HUD will be documented in this file.
 
 ### Docs
 - Add the ten missing config options and the absolute-path caveat for `display.externalUsagePath` to `README.zh.md` (#730).
+
+## [0.10.0] - 2026-09-11
+
+### Added
+- Report `display.showSpeed` from Claude Code's own OpenTelemetry export: the value is the rate the last `claude_code.api_request` actually measured, instead of an estimate derived from snapshot timing. The HUD starts a loopback-only OTLP receiver on demand and keeps one JSONL sample file per session.
+- `otel` config block: `mode` (`auto` | `off`), `autoStart`, and `sampleRetentionDays` (default 7).
+
+### Changed
+- Render the speed as a whole number (`out: 170 tps`) and relabel the unit from `tok/s` to `tps`.
+- Show a dim `out: --` placeholder until the session's first request has been measured, instead of hiding the segment.
+
+### Fixed
+- Discard speed samples that cannot reflect generation: fewer than 150 output tokens, or a rate above 500 tps. The last catches upstream relays that buffer a whole stream and flush hundreds of tokens in a single burst.
+
+### Security
+- Keep the OTLP receiver on loopback and never start it for a remote endpoint, claim its pidfile by hard link to avoid a zero-byte race, and bound each sample file and the sample directory to a fixed size.
+
+## [0.9.1] - 2026-09-10
+
+### Added
+- `display.cacheHitPlacement` option (`firstLine` | `stats`) to move the prompt cache hit rate segment to the appended stats line, next to the compaction count.
+
+### Changed
+- Show a dim `CacheHit --` placeholder until the cache hit rate is known, instead of hiding the segment, so the slot stays put from the first frame of a session.
+
+## [0.9.0] - 2026-09-10
+
+### Added
+- `display.showCacheHit` option to show the most recent request's prompt cache hit rate on the first line, e.g. `CacheHit 82.3%`. Computed as cache reads over the request's whole input, so Anthropic-compatible endpoints that never report cache writes cannot pin it at 100%.
+- `colors.contextTokens` option to color only the token parenthetical of `contextValue: "both"`, e.g. `(116k/1.0M)`, leaving the context bar and percentage on their health color.
+
+### Fixed
+- `modelFormat: compact` and `short` now also strip a trailing bracketed context-window marker such as `[1m]`, which proxied models report instead of `(1M context)`.
 
 ## [0.8.0] - 2026-08-18
 
