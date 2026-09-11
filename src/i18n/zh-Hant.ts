@@ -33,7 +33,7 @@ export const zhHant: Messages = {
   "format.cache": "快取",
   "format.out": "輸出",
   "format.tok": "tok",
-  "format.tokPerSec": "tok/s",
+  "format.tokPerSec": "tps",
   "format.justNow": "剛剛",
   "format.relativeTime": "{value} 前",
 

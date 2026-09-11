@@ -1492,7 +1492,7 @@ test('renderSessionLine treats missing showDuration as disabled in compact layou
   assert.ok(!line.includes('12m 34s'), `duration must remain opt-in: ${line}`);
 });
 
-test('renderProjectLine includes speed when showSpeed is true and speed is available', async () => {
+test('renderProjectLine shows the speed placeholder when nothing has been measured', async () => {
   await withDeterministicSpeedCache(async ({ transcriptPath }) => {
     const ctx = baseContext();
     ctx.stdin.transcript_path = transcriptPath;
@@ -1500,8 +1500,16 @@ test('renderProjectLine includes speed when showSpeed is true and speed is avail
     ctx.stdin.context_window.current_usage.output_tokens = 2000;
     ctx.config.display.showSpeed = true;
 
-    const line = renderProjectLine(ctx);
-    assert.ok(line?.includes('out: 1000.0 tok/s'), 'should include deterministic speed');
+    const prev = process.env.CLAUDE_CODE_ENABLE_TELEMETRY;
+    delete process.env.CLAUDE_CODE_ENABLE_TELEMETRY;
+    try {
+      const line = renderProjectLine(ctx);
+      // The snapshot estimate is no longer displayed at all; without a
+      // measurement the segment holds the same `--` the cache hit segment uses.
+      assert.ok(line?.includes('out: --'), `expected the speed placeholder, got ${line}`);
+    } finally {
+      if (prev !== undefined) process.env.CLAUDE_CODE_ENABLE_TELEMETRY = prev;
+    }
   });
 });
 
@@ -1511,7 +1519,7 @@ test('renderProjectLine omits speed when showSpeed is false', () => {
   ctx.config.display.showSpeed = false;
   ctx.stdin.context_window.current_usage.output_tokens = 5000;
   const line = renderProjectLine(ctx);
-  assert.ok(!line?.includes('tok/s'), 'should not include speed when disabled');
+  assert.ok(!line?.includes('tps'), 'should not include speed when disabled');
 });
 
 test('render expanded layout includes speed and duration on the project line', async () => {
@@ -1528,7 +1536,7 @@ test('render expanded layout includes speed and duration on the project line', a
     const projectLine = lines.find(line => line.includes('my-project'));
 
     assert.ok(projectLine, 'expected an expanded project line');
-    assert.ok(projectLine.includes('out: 1000.0 tok/s'), 'should include deterministic speed');
+    assert.ok(projectLine.includes('out: --'), 'should include the speed segment');
     assert.ok(projectLine.includes('⏱️  12m 34s'), 'should include session duration');
   });
 });
@@ -4410,4 +4418,44 @@ test('render expanded layout still stacks a right-aligned group that does not fi
 
   assert.equal(combined, undefined, 'narrow terminals should stack instead of combining');
   assert.ok(contextLine, 'expected a standalone context line');
+});
+
+test('renderProjectLine shows the measured speed', async () => {
+  await withDeterministicSpeedCache(async ({ transcriptPath }) => {
+    const ctx = baseContext();
+    ctx.stdin.transcript_path = transcriptPath;
+    ctx.stdin.session_id = 'sess-otel';
+    ctx.stdin.cwd = '/tmp/my-project';
+    ctx.stdin.context_window.current_usage.output_tokens = 2000;
+    ctx.config.display.showSpeed = true;
+    ctx.config.otel = { mode: 'auto', autoStart: false, sampleRetentionDays: 7 };
+
+    const dir = path.join(process.env.CLAUDE_CONFIG_DIR, 'plugins', 'claude-hud', 'otel');
+    await mkdir(dir, { recursive: true });
+    await writeFile(
+      path.join(dir, 'sess-otel.jsonl'),
+      `${JSON.stringify({ ts: new Date(2000).toISOString(), outputTokens: 217, durationMs: 1426, ttftMs: 150 })}\n`,
+      'utf8',
+    );
+
+    const prev = process.env.CLAUDE_CODE_ENABLE_TELEMETRY;
+    process.env.CLAUDE_CODE_ENABLE_TELEMETRY = '1';
+    try {
+      const line = stripAnsi(renderProjectLine(ctx));
+      assert.ok(line?.includes('out: 170 tps'), `expected the measured rate, got ${line}`);
+
+      // 218 tokens over the same window is 170.85/s; the display rounds rather
+      // than truncating.
+      await writeFile(
+        path.join(dir, 'sess-otel.jsonl'),
+        `${JSON.stringify({ ts: new Date(2000).toISOString(), outputTokens: 218, durationMs: 1426, ttftMs: 150 })}\n`,
+        'utf8',
+      );
+      const rounded = stripAnsi(renderProjectLine(ctx));
+      assert.ok(rounded?.includes('out: 171 tps'), `expected rounding up, got ${rounded}`);
+    } finally {
+      if (prev === undefined) delete process.env.CLAUDE_CODE_ENABLE_TELEMETRY;
+      else process.env.CLAUDE_CODE_ENABLE_TELEMETRY = prev;
+    }
+  });
 });

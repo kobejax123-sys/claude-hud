@@ -18,6 +18,7 @@ export type AutocompactBufferMode = 'enabled' | 'disabled';
 export type ContextValueMode = 'percent' | 'tokens' | 'remaining' | 'both';
 export type UsageValueMode = 'percent' | 'remaining';
 export type CacheHitPlacement = 'firstLine' | 'stats';
+export type OtelMode = 'auto' | 'off';
 export type GitBranchOverflowMode = 'truncate' | 'wrap';
 
 /**
@@ -195,6 +196,17 @@ export interface HudConfig {
     showDirty: boolean;
     showConflicts: boolean;
   };
+  otel: {
+    /**
+     * `auto` uses OpenTelemetry data whenever the environment carries telemetry
+     * settings; `off` always uses the estimate.
+     */
+    mode: OtelMode;
+    /** When false the HUD never spawns the receiver; the user runs it manually. */
+    autoStart: boolean;
+    /** Sample files older than this many days are pruned by the receiver. */
+    sampleRetentionDays: number;
+  };
   display: {
     showModel: boolean;
     showProject: boolean;
@@ -328,6 +340,11 @@ export const DEFAULT_CONFIG: HudConfig = {
     showDirty: true,
     showConflicts: true,
   },
+  otel: {
+    mode: 'auto',
+    autoStart: true,
+    sampleRetentionDays: 7,
+  },
   display: {
     showModel: true,
     showProject: true,
@@ -460,6 +477,10 @@ function validateUsageValue(value: unknown): value is UsageValueMode {
 
 function validateCacheHitPlacement(value: unknown): value is CacheHitPlacement {
   return value === 'firstLine' || value === 'stats';
+}
+
+function validateOtelMode(value: unknown): value is OtelMode {
+  return value === 'auto' || value === 'off';
 }
 
 function validateLanguage(value: unknown): value is Language {
@@ -797,6 +818,19 @@ export function mergeConfig(userConfig: Partial<HudConfig>): HudConfig {
       : DEFAULT_CONFIG.jjStatus.showConflicts,
   };
 
+  const otel = {
+    mode: validateOtelMode(migrated.otel?.mode)
+      ? migrated.otel.mode
+      : DEFAULT_CONFIG.otel.mode,
+    autoStart: typeof migrated.otel?.autoStart === 'boolean'
+      ? migrated.otel.autoStart
+      : DEFAULT_CONFIG.otel.autoStart,
+    sampleRetentionDays: validateNonNegativeInteger(
+      migrated.otel?.sampleRetentionDays,
+      DEFAULT_CONFIG.otel.sampleRetentionDays,
+    ),
+  };
+
   const display = {
     showModel: typeof migrated.display?.showModel === 'boolean'
       ? migrated.display.showModel
@@ -1051,7 +1085,7 @@ export function mergeConfig(userConfig: Partial<HudConfig>): HudConfig {
       : DEFAULT_CONFIG.colors.barEmpty,
   };
 
-  return { language, lineLayout, showSeparators, pathLevels, maxWidth, forceMaxWidth, elementOrder, projectLineOrder, gitStatus, jjStatus, display, colors };
+  return { language, lineLayout, showSeparators, pathLevels, maxWidth, forceMaxWidth, elementOrder, projectLineOrder, gitStatus, jjStatus, otel, display, colors };
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

@@ -1,9 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { getOutputSpeed } from '../dist/speed-tracker.js';
+import { getOutputSpeed, getMeasuredTps } from '../dist/speed-tracker.js';
+import { DEFAULT_CONFIG, mergeConfig } from '../dist/config.js';
 import { existsSync } from 'node:fs';
 
 function restoreEnvVar(name, value) {
@@ -327,5 +328,137 @@ test('getOutputSpeed writes cache under CLAUDE_CONFIG_DIR by default', async () 
     restoreEnvVar('HOME', originalHome);
     restoreEnvVar('CLAUDE_CONFIG_DIR', originalConfigDir);
     await rm(tempHome, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// getMeasuredTps: only the OTel measurement, never the estimate
+// ---------------------------------------------------------------------------
+
+// getClaudeConfigDir() lets CLAUDE_CONFIG_DIR override the passed homeDir, which
+// would break every path assertion below. node --test runs each file in its own
+// process, so clearing it here is safe.
+delete process.env.CLAUDE_CONFIG_DIR;
+
+function otelConfig(overrides = {}) {
+  return mergeConfig({ otel: { autoStart: false, ...overrides } });
+}
+
+async function writeSample(homeDir, sessionId, sample) {
+  const dir = path.join(homeDir, '.claude/plugins/claude-hud/otel');
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, `${sessionId}.jsonl`), `${JSON.stringify(sample)}\n`, 'utf8');
+}
+
+test('getMeasuredTps returns null when nothing has been measured', async () => {
+  const home = await createTempHome();
+  const prev = process.env.CLAUDE_CODE_ENABLE_TELEMETRY;
+  process.env.CLAUDE_CODE_ENABLE_TELEMETRY = '1';
+  try {
+    assert.equal(
+      getMeasuredTps(
+        { session_id: 'sess-none', transcript_path: path.join(home, 't.jsonl') },
+        otelConfig(),
+        { homeDir: () => home },
+      ),
+      null,
+    );
+  } finally {
+    restoreEnvVar('CLAUDE_CODE_ENABLE_TELEMETRY', prev);
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test('getMeasuredTps returns the measured rate', async () => {
+  const home = await createTempHome();
+  await writeSample(home, 'sess-otel', {
+    ts: '2026-09-11T02:52:24.425Z', outputTokens: 217, durationMs: 1426, ttftMs: 150,
+  });
+
+  const prev = process.env.CLAUDE_CODE_ENABLE_TELEMETRY;
+  process.env.CLAUDE_CODE_ENABLE_TELEMETRY = '1';
+  try {
+    const tps = getMeasuredTps(
+      { session_id: 'sess-otel', transcript_path: path.join(home, 't.jsonl') },
+      otelConfig(),
+      { homeDir: () => home },
+    );
+    assert.ok(Math.abs(tps - 170.06) < 0.1, `got ${tps}`);
+  } finally {
+    restoreEnvVar('CLAUDE_CODE_ENABLE_TELEMETRY', prev);
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test('getMeasuredTps never falls back to the estimate when telemetry is off', async () => {
+  const home = await createTempHome();
+  const transcriptPath = await createTranscript(home);
+  await writeSample(home, 'sess-off', {
+    ts: '2026-09-11T02:52:24.425Z', outputTokens: 217, durationMs: 1426, ttftMs: 150,
+  });
+
+  const prev = process.env.CLAUDE_CODE_ENABLE_TELEMETRY;
+  delete process.env.CLAUDE_CODE_ENABLE_TELEMETRY;
+  try {
+    // The estimator still exists and still works; it is simply no longer shown.
+    getOutputSpeed(stdinWith(transcriptPath, 10), { homeDir: () => home, now: () => 1000 });
+    const estimated = getOutputSpeed(stdinWith(transcriptPath, 500), { homeDir: () => home, now: () => 1500 });
+    assert.ok(estimated !== null, 'the estimator itself is untouched');
+
+    assert.equal(
+      getMeasuredTps(
+        { session_id: 'sess-off', transcript_path: transcriptPath, context_window: { current_usage: { output_tokens: 500 } } },
+        DEFAULT_CONFIG,
+        { homeDir: () => home },
+      ),
+      null,
+    );
+  } finally {
+    restoreEnvVar('CLAUDE_CODE_ENABLE_TELEMETRY', prev);
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test('getMeasuredTps returns null when mode is off', async () => {
+  const home = await createTempHome();
+  await writeSample(home, 'sess-off', {
+    ts: '2026-09-11T02:52:24.425Z', outputTokens: 217, durationMs: 1426, ttftMs: 150,
+  });
+
+  const prev = process.env.CLAUDE_CODE_ENABLE_TELEMETRY;
+  process.env.CLAUDE_CODE_ENABLE_TELEMETRY = '1';
+  try {
+    assert.equal(
+      getMeasuredTps(
+        { session_id: 'sess-off', transcript_path: path.join(home, 't.jsonl') },
+        mergeConfig({ otel: { mode: 'off', autoStart: false } }),
+        { homeDir: () => home },
+      ),
+      null,
+    );
+  } finally {
+    restoreEnvVar('CLAUDE_CODE_ENABLE_TELEMETRY', prev);
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test('getMeasuredTps keeps reporting an old measurement', async () => {
+  const home = await createTempHome();
+  await writeSample(home, 'sess-old', {
+    ts: '2020-01-01T00:00:00.000Z', outputTokens: 217, durationMs: 1426, ttftMs: 150,
+  });
+
+  const prev = process.env.CLAUDE_CODE_ENABLE_TELEMETRY;
+  process.env.CLAUDE_CODE_ENABLE_TELEMETRY = '1';
+  try {
+    const tps = getMeasuredTps(
+      { session_id: 'sess-old', transcript_path: path.join(home, 't.jsonl') },
+      otelConfig(),
+      { homeDir: () => home },
+    );
+    assert.ok(Math.abs(tps - 170.06) < 0.1, `got ${tps}`);
+  } finally {
+    restoreEnvVar('CLAUDE_CODE_ENABLE_TELEMETRY', prev);
+    await rm(home, { recursive: true, force: true });
   }
 });

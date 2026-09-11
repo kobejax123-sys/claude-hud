@@ -1,7 +1,7 @@
 import type { RenderContext } from '../types.js';
 import { isLimitReached } from '../types.js';
 import { getContextPercent, getBufferedPercent, getModelName, formatModelName, resolveModelName, shouldHideUsage } from '../stdin.js';
-import { getOutputSpeed } from '../speed-tracker.js';
+import { getMeasuredTps } from '../speed-tracker.js';
 import { coloredBar, colorizeContextValue, critical, git as gitColor, gitBranch as gitBranchColor, label, model as modelColor, project as projectColor, getQuotaColor, quotaBar, custom as customColor, RESET } from './colors.js';
 import { getAdaptiveBarWidth } from '../utils/terminal.js';
 import { renderCostEstimate } from './lines/cost.js';
@@ -395,10 +395,11 @@ export function renderSessionLine(ctx: RenderContext): string {
   }
 
   if (display?.showSpeed) {
-    const speed = getOutputSpeed(ctx.stdin);
-    if (speed !== null) {
-      push(label(`${t('format.out')}: ${speed.toFixed(1)} ${t('format.tokPerSec')}`, colors), 'speed');
-    }
+    // Stays on the last measured rate for the whole session; `--` until the first
+    // request has been measured, mirroring how the cache hit segment reads.
+    const tps = getMeasuredTps(ctx.stdin, ctx.config);
+    const value = tps === null ? '--' : `${Math.round(tps)} ${t('format.tokPerSec')}`;
+    push(label(`${t('format.out')}: ${value}`, colors), 'speed');
   }
 
   if (ctx.extraLabel) {

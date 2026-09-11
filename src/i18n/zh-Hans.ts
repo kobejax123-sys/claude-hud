@@ -33,7 +33,7 @@ export const zhHans: Messages = {
   "format.cache": "缓存",
   "format.out": "输出",
   "format.tok": "词元",
-  "format.tokPerSec": "tok/s",
+  "format.tokPerSec": "tps",
   "format.justNow": "刚刚",
   "format.relativeTime": "{value} 前",
 
