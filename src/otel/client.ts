@@ -16,25 +16,65 @@ import { getSamplePath } from './paths.js';
 const MIN_OUTPUT_TOKENS = 150;
 
 /**
- * Hard ceiling on credible single-client generation speed.
+ * Decode window a request needs before its rate is trusted.
  *
- * Upstream relays or proxies sometimes buffer streaming responses (waiting
- * several seconds for the whole output and dumping hundreds of tokens in a
- * 100-200ms burst). This produces artifactual rates into the thousands of TPS
- * that reflect network burst transfer rather than LLM token generation. Any
- * sample exceeding this threshold is discarded as non-streaming/buffered.
+ * A relay that buffers a response and flushes it as one frame reports a window
+ * that barely moves with the token count: across this machine's samples every
+ * such reply lands under 200ms (195 tokens in 34ms, 303 in 63ms) while genuine
+ * token-by-token streaming never falls below ~500ms. The window is therefore
+ * what separates a measurement from an artifact, and a short one carries no rate
+ * information at all.
+ *
+ * Guarding on the window rather than on the rate matters for correctness, not
+ * just for taste. A 500 tps ceiling sat at the 99th percentile of real samples
+ * here, so it discarded measurements from genuinely fast models (Gemini Flash
+ * reaches ~1000 tps on long replies) while still admitting burst artifacts that
+ * happened to land just under it.
  */
-const MAX_PRACTICAL_TPS = 500;
+const MIN_DECODE_MS = 500;
 
 /** Only the tail of a sample file is read; a session's file stays small but is not bounded. */
 const TAIL_BYTES = 8192;
 
+/**
+ * Tail window for aggregating one turn. A turn issues several requests, so it
+ * needs more than the last sample's worth of file: at roughly 120 bytes per
+ * recorded sample this covers several hundred requests, and truncating a very
+ * long turn drops old samples from the numerator and the denominator alike,
+ * which leaves the ratio — a rate, not a count — intact.
+ */
+const TURN_TAIL_BYTES = 64 * 1024;
+
 export interface SpeedSample {
   ts: string;
   model?: string;
+  querySource?: string;
   outputTokens: number;
   durationMs: number;
   ttftMs: number;
+}
+
+/**
+ * True for a request issued by the main conversation rather than by a subagent
+ * or an auxiliary call.
+ *
+ * Mirrors Claude Code's own classification of `query_source`: `repl_main_thread`
+ * (with any output-style suffix) and `sdk` are the main chain, `agent:` and
+ * `hook_agent` are subagents, and everything else — compaction, side questions,
+ * web search, auto mode — is auxiliary.
+ *
+ * A subagent has to be excluded by this rather than by its model, because a
+ * subagent that inherits the session model is indistinguishable by model name.
+ * It still writes into the same session's sample file, so without this a turn
+ * that spawns an explorer blends two chains' requests into one rate.
+ *
+ * An absent field is treated as main: it means the sample predates this
+ * attribute or the provider does not report it, and guessing "subagent" there
+ * would silently blank the segment.
+ */
+export function isMainChainQuery(source: string | undefined): boolean {
+  if (source === undefined) return true;
+  return source.startsWith('repl_main_thread') || source === 'sdk';
 }
 
 function finiteNumber(value: unknown): number | null {
@@ -64,6 +104,7 @@ export function parseSample(line: string): SpeedSample | null {
     durationMs,
     ttftMs,
     ...(typeof r.model === 'string' && r.model !== '' ? { model: r.model } : {}),
+    ...(typeof r.querySource === 'string' && r.querySource !== '' ? { querySource: r.querySource } : {}),
   };
 }
 
@@ -73,27 +114,26 @@ export function computeTps(sample: Pick<SpeedSample, 'outputTokens' | 'durationM
   if (sample.durationMs <= sample.ttftMs) return null;
 
   const decodeMs = sample.durationMs - sample.ttftMs;
+  if (decodeMs < MIN_DECODE_MS) return null;
 
   // Samples come from a file the receiver wrote from network payloads, and a
-  // finite-but-huge token count over a 100ms window overflows to Infinity. The
+  // finite-but-huge token count over a short window overflows to Infinity. The
   // renderer would print that verbatim, so anything not finite is unusable.
-  // Burst transfers from buffered upstream relays that exceed MAX_PRACTICAL_TPS
-  // are likewise discarded.
   const tps = sample.outputTokens / (decodeMs / 1000);
-  if (!Number.isFinite(tps) || tps > MAX_PRACTICAL_TPS) return null;
+  if (!Number.isFinite(tps)) return null;
   return tps;
 }
 
 /**
- * Reads the last usable sample from the tail of a sample file. Reading only the
- * tail keeps this O(1) regardless of how long the session has been running.
+ * Reads the tail of a sample file as whole lines. Reading only the tail keeps
+ * this O(1) regardless of how long the session has been running.
  *
  * A window that does not begin at the start of the file may begin mid-line, in
  * which case its first segment is a partial line that must not be parsed. The byte
  * immediately before the window tells the two cases apart exactly, so a window
  * that happens to land on a line boundary still keeps its first line.
  */
-export function readLastSample(filePath: string): SpeedSample | null {
+function readTailLines(filePath: string, maxBytes: number): string[] | null {
   let fd: number;
   try {
     fd = fs.openSync(filePath, 'r');
@@ -103,7 +143,7 @@ export function readLastSample(filePath: string): SpeedSample | null {
 
   try {
     const size = fs.fstatSync(fd).size;
-    const start = Math.max(0, size - TAIL_BYTES);
+    const start = Math.max(0, size - maxBytes);
     const length = size - start;
     if (length <= 0) return null;
 
@@ -117,17 +157,7 @@ export function readLastSample(filePath: string): SpeedSample | null {
     const buf = Buffer.alloc(length);
     fs.readSync(fd, buf, 0, length, start);
 
-    const lines = buf.toString('utf8').split('\n');
-    for (let i = lines.length - 1; i >= firstUsable; i--) {
-      const line = lines[i].trim();
-      if (line === '') continue;
-      const parsed = parseSample(line);
-      // Only a sample the guards accept is worth returning. An interrupted or
-      // failed request is recorded with no output, and returning it would blank a
-      // segment that is meant to hold the last rate it measured.
-      if (parsed && computeTps(parsed) !== null) return parsed;
-    }
-    return null;
+    return buf.toString('utf8').split('\n').slice(firstUsable);
   } catch {
     return null;
   } finally {
@@ -139,17 +169,96 @@ export function readLastSample(filePath: string): SpeedSample | null {
   }
 }
 
+export function readLastSample(filePath: string): SpeedSample | null {
+  const lines = readTailLines(filePath, TAIL_BYTES);
+  if (!lines) return null;
+
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i].trim();
+    if (line === '') continue;
+    const parsed = parseSample(line);
+    // Only a sample the guards accept is worth returning. An interrupted or
+    // failed request is recorded with no output, and returning it would blank a
+    // segment that is meant to hold the last rate it measured.
+    if (parsed && isMainChainQuery(parsed.querySource) && computeTps(parsed) !== null) return parsed;
+  }
+  return null;
+}
+
+/** Output tokens and decode milliseconds summed over one turn's requests. */
+export interface TurnAggregate {
+  outputTokens: number;
+  decodeMs: number;
+}
+
+/**
+ * Sums the measured requests recorded after `sinceMs` — one turn's worth.
+ *
+ * A single request is a poor sample: a turn that only issues tool calls is all
+ * short replies whose fixed per-request cost lands in the denominator, and any
+ * one request's window is small enough to swing the reading. Summing tokens and
+ * decode windows over the turn divides that noise out, which is what makes the
+ * result stable enough to hold on screen.
+ *
+ * Samples the single-request guards reject are skipped here too, so the turn
+ * reading can never disagree with what the segment would show for one request.
+ * Requests from a subagent or an auxiliary chain are skipped as well: they land
+ * in the same session's file but are not the turn the user is watching, and a
+ * subagent running the session model would otherwise be invisible to a
+ * model-based filter.
+ *
+ * Returns null when the turn has produced nothing measurable yet, which leaves
+ * the caller free to keep showing the previous turn's rate.
+ */
+export function readTurnAggregate(filePath: string, sinceMs: number): TurnAggregate | null {
+  const lines = readTailLines(filePath, TURN_TAIL_BYTES);
+  if (!lines) return null;
+
+  let outputTokens = 0;
+  let decodeMs = 0;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed === '') continue;
+
+    const parsed = parseSample(trimmed);
+    if (!parsed || !isMainChainQuery(parsed.querySource) || computeTps(parsed) === null) continue;
+
+    // A sample file is written from network payloads, so a malformed timestamp
+    // must be skipped rather than compared as NaN, which is false for every
+    // ordering and would silently drop the sample.
+    const at = Date.parse(parsed.ts);
+    if (!Number.isFinite(at) || at <= sinceMs) continue;
+
+    outputTokens += parsed.outputTokens;
+    decodeMs += parsed.durationMs - parsed.ttftMs;
+  }
+
+  if (decodeMs <= 0) return null;
+  return { outputTokens, decodeMs };
+}
+
 /**
  * The most recent measured rate for a session, or null when nothing has been
  * recorded yet. Deliberately not time-bounded: the speed segment is meant to
  * stay on the last measured value rather than decay back to a placeholder.
+ *
+ * When `sinceMs` is given the rate is aggregated over the requests recorded
+ * after it — the turn in progress — which is what the statusline shows. A turn
+ * that has not yet produced a measurable request falls back to the last single
+ * sample, so the segment holds its previous reading instead of blanking at the
+ * start of every turn.
  */
-export function getOtelTps(homeDir: string, sessionId: string): number | null {
+export function getOtelTps(homeDir: string, sessionId: string, sinceMs: number | null = null): number | null {
   let samplePath: string;
   try {
     samplePath = getSamplePath(homeDir, sessionId);
   } catch {
     return null;
+  }
+
+  if (sinceMs !== null) {
+    const aggregate = readTurnAggregate(samplePath, sinceMs);
+    if (aggregate) return aggregate.outputTokens / (aggregate.decodeMs / 1000);
   }
 
   const sample = readLastSample(samplePath);

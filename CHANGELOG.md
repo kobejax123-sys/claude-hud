@@ -7,7 +7,12 @@ All notable changes to Claude HUD will be documented in this file.
 ### Added
 - `display.showDailyCost` option to show today's cumulative spend across sessions (`Today $12.34`), accumulated from the native stdin `cost.total_cost_usd` into a per-day ledger that resets at local midnight (#695).
 
+### Changed
+- Report `display.showSpeed` from the turn in progress rather than from the last single request: the rate is the turn's output tokens over the turn's decode windows, which stays put while tool calls are in flight instead of swinging with each reply. The turn boundary is the `turn_duration` record Claude Code already writes.
+- Sample the main conversation only. Requests a subagent or an auxiliary chain issues are dropped, so a `Task` running on the session model no longer blends into the turn's rate — the model name cannot tell those apart, but `query_source` can.
+
 ### Fixed
+- Judge a speed sample on its decode window instead of on its rate. The 500 tps ceiling added in 0.10.0 sat at the 99th percentile of real samples, so it threw away measurements from genuinely fast models (Gemini Flash measures ~1000 tps on long replies) and still admitted burst artifacts below it. A relay that buffers a stream reports a window that barely moves with the token count — every such sample measured under 200 ms, against a 500 ms floor for real streaming.
 - Refresh the prompt-cache clock when a request starts rather than when its response arrives, ignoring client-side slash command records, interrupt markers, and subagent requests (#719).
 - Treat Agent `tool_result` payloads with `isAsync` or `status: async_launched` as background so the agents line stays up until the task-notification (#734).
 - Pass `--no-optional-locks` on `git diff --numstat` so a timed-out statusline poll cannot leave `.git/index.lock` behind (#726).

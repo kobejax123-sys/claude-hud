@@ -262,6 +262,7 @@ export function getMeasuredTps(
   stdin: StdinData,
   config?: HudConfig,
   overrides: Partial<SpeedTrackerDeps> = {},
+  turnEndedAt?: Date,
 ): number | null {
   // Several test fixtures and third-party callers build config objects by hand
   // without the otel block; a missing block means "not configured" rather than
@@ -295,5 +296,5 @@ export function getMeasuredTps(
     });
   }
 
-  return getOtelTps(homeDir, sessionId);
+  return getOtelTps(homeDir, sessionId, turnEndedAt?.getTime() ?? null);
 }

@@ -106,12 +106,19 @@ export function extractSamples(payload: unknown): ExtractedSample[] {
         if (outputTokens === null || durationMs === null || ttftMs === null) continue;
 
         const model = typeof attrs.model === 'string' && attrs.model !== '' ? attrs.model : undefined;
+        // Which chain issued the request (main thread, a subagent, compaction,
+        // …). Recorded rather than filtered on, so the raw measurement survives
+        // a change in what the reader chooses to include.
+        const querySource = typeof attrs.query_source === 'string' && attrs.query_source !== ''
+          ? attrs.query_source
+          : undefined;
 
         out.push({
           sessionId,
           line: JSON.stringify({
             ts,
             ...(model !== undefined ? { model } : {}),
+            ...(querySource !== undefined ? { querySource } : {}),
             outputTokens,
             durationMs,
             ttftMs,

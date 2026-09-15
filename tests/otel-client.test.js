@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
-  parseSample, computeTps, readLastSample, getOtelTps,
+  parseSample, computeTps, readLastSample, readTurnAggregate, getOtelTps, isMainChainQuery,
 } from '../dist/otel/client.js';
 
 // getClaudeConfigDir() lets CLAUDE_CONFIG_DIR override the passed homeDir,
@@ -74,16 +74,24 @@ test('computeTps rejects a non-finite result', () => {
   assert.equal(computeTps({ ts: 'x', outputTokens: Number.MAX_VALUE, durationMs: 100, ttftMs: 0 }), null);
 });
 
-test('computeTps rejects a rate exceeding the 500 tps ceiling', () => {
-  // When an upstream proxy buffers streaming tokens and dumps them in a burst
-  // (e.g. 453 tokens in 130ms = 3485 tps), the rate is rejected.
+test('computeTps rejects a decode window too short to carry a rate', () => {
+  // A relay that buffers the response and flushes it as one frame reports a
+  // window that barely moves with the token count, so it measures the flush
+  // rather than generation. Every burst in this machine's samples landed under
+  // 200ms; genuine streaming never fell below 500ms.
   assert.equal(computeTps({ ts: 'x', outputTokens: 453, durationMs: 4416, ttftMs: 4286 }), null);
-  assert.equal(computeTps({ ts: 'x', outputTokens: 501, durationMs: 2000, ttftMs: 1000 }), null);
-  // A near-zero decode window needs no guard of its own: 200 tokens over 50ms is
-  // 4000 tps, so the ceiling already rejects it.
   assert.equal(computeTps({ ts: 'x', outputTokens: 200, durationMs: 200, ttftMs: 150 }), null);
-  // Exactly 500 tps is accepted
-  assert.equal(computeTps({ ts: 'x', outputTokens: 500, durationMs: 2000, ttftMs: 1000 }), 500);
+  assert.equal(computeTps({ ts: 'x', outputTokens: 680, durationMs: 1000, ttftMs: 950 }), null);
+  // The boundary itself is usable.
+  assert.equal(computeTps({ ts: 'x', outputTokens: 500, durationMs: 2000, ttftMs: 1500 }), 1000);
+});
+
+test('computeTps keeps a fast model rate that a rate ceiling used to discard', () => {
+  // 217 tokens over 600ms is 362 tps and 1447 over 1054ms is 1373 tps. Both are
+  // real measurements from a fast provider; the ceiling this replaced sat at the
+  // 99th percentile of real samples and rejected them for being fast.
+  const tps = computeTps({ ts: 'x', outputTokens: 1447, durationMs: 1054, ttftMs: 0 });
+  assert.ok(Math.abs(tps - 1372.87) < 0.1, `got ${tps}`);
 });
 
 test('readLastSample skips a truncated trailing line and finds the last good one', async () => {
@@ -120,7 +128,7 @@ test('readLastSample holds the last rate through a short reply', async () => {
   const file = path.join(dir, 's.jsonl');
   // A 12-token reply measures mostly the tail of the response rather than
   // generation, so it must not replace a rate that was measured properly.
-  // 900 tokens in 3600ms = 250 tps is well within the 500 tps ceiling.
+  // 900 tokens in a 3600ms window is a long, well-formed measurement.
   await writeFile(
     file,
     `${sampleLine({ outputTokens: 900, durationMs: 4000, ttftMs: 400 })}\n${sampleLine({ outputTokens: 12, durationMs: 900, ttftMs: 250 })}\n`,
@@ -132,10 +140,11 @@ test('readLastSample holds the last rate through a short reply', async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-test('readLastSample holds the last rate through an implausibly high burst sample', async () => {
+test('readLastSample holds the last rate through a buffered burst sample', async () => {
   const dir = await makeHome();
   const file = path.join(dir, 's.jsonl');
-  // 453 tokens in 130ms = 3485 tps (buffered upstream dumping); must not overwrite 250 tps
+  // 453 tokens arrive in a 130ms window because the upstream buffered the whole
+  // response; the window is the tell, and it must not overwrite the 250 tps.
   await writeFile(
     file,
     `${sampleLine({ outputTokens: 250, durationMs: 1150, ttftMs: 150 })}\n${sampleLine({ outputTokens: 453, durationMs: 4416, ttftMs: 4286 })}\n`,
@@ -198,6 +207,172 @@ test('getOtelTps keeps reporting an old sample instead of expiring it', async ()
   const tps = getOtelTps(home, 'sess-1');
   assert.ok(Math.abs(tps - 170.06) < 0.1, `got ${tps}`);
   await rm(home, { recursive: true, force: true });
+});
+
+test('readTurnAggregate sums only the samples recorded after the boundary', async () => {
+  const dir = await makeHome();
+  const file = path.join(dir, 's.jsonl');
+  await writeFile(
+    file,
+    [
+      // Previous turn: 600 tokens over a 3000ms window = 200 tps.
+      sampleLine({ ts: '2026-09-11T02:00:00.000Z', outputTokens: 600, durationMs: 3100, ttftMs: 100 }),
+      // Current turn: 300 over 3000ms=100 tps and 900 over 3000ms=300 tps.
+      sampleLine({ ts: '2026-09-11T02:10:00.000Z', outputTokens: 300, durationMs: 3100, ttftMs: 100 }),
+      sampleLine({ ts: '2026-09-11T02:11:00.000Z', outputTokens: 900, durationMs: 3100, ttftMs: 100 }),
+    ].join('\n') + '\n',
+    'utf8',
+  );
+
+  const agg = readTurnAggregate(file, Date.parse('2026-09-11T02:05:00.000Z'));
+  assert.equal(agg.outputTokens, 1200);
+  assert.equal(agg.decodeMs, 6000);
+  await rm(dir, { recursive: true, force: true });
+});
+
+test('readTurnAggregate skips samples the single-request guards reject', async () => {
+  const dir = await makeHome();
+  const file = path.join(dir, 's.jsonl');
+  // A buffered burst carries real tokens over a window too short to measure.
+  // Counting it would drag the turn's rate up, so it is left out of both sums.
+  await writeFile(
+    file,
+    [
+      sampleLine({ ts: '2026-09-11T02:10:00.000Z', outputTokens: 500, durationMs: 2000, ttftMs: 1000 }),
+      sampleLine({ ts: '2026-09-11T02:11:00.000Z', outputTokens: 680, durationMs: 1050, ttftMs: 1000 }),
+    ].join('\n') + '\n',
+    'utf8',
+  );
+
+  const agg = readTurnAggregate(file, Date.parse('2026-09-11T02:00:00.000Z'));
+  assert.equal(agg.outputTokens, 500);
+  assert.equal(agg.decodeMs, 1000);
+  await rm(dir, { recursive: true, force: true });
+});
+
+test('readTurnAggregate returns null when the turn has nothing measurable yet', async () => {
+  const dir = await makeHome();
+  const file = path.join(dir, 's.jsonl');
+  await writeFile(
+    file,
+    `${sampleLine({ ts: '2026-09-11T02:00:00.000Z' })}\n`,
+    'utf8',
+  );
+
+  // The only sample predates the boundary, so the caller keeps its old reading.
+  assert.equal(readTurnAggregate(file, Date.parse('2026-09-11T02:05:00.000Z')), null);
+  assert.equal(readTurnAggregate(path.join(dir, 'missing.jsonl'), 0), null);
+  await rm(dir, { recursive: true, force: true });
+});
+
+test('readTurnAggregate ignores a sample with an unparseable timestamp', async () => {
+  const dir = await makeHome();
+  const file = path.join(dir, 's.jsonl');
+  // NaN compares false against every bound, so an unguarded comparison would
+  // quietly drop the sample rather than reject it on its merits.
+  await writeFile(
+    file,
+    `${sampleLine({ ts: 'not-a-date', outputTokens: 500, durationMs: 2000, ttftMs: 1000 })}\n`,
+    'utf8',
+  );
+
+  assert.equal(readTurnAggregate(file, 0), null);
+  await rm(dir, { recursive: true, force: true });
+});
+
+test('getOtelTps aggregates the turn instead of reading the last sample', async () => {
+  const home = await makeHome();
+  await mkdir(path.join(home, '.claude/plugins/claude-hud/otel'), { recursive: true });
+  await writeFile(
+    path.join(home, '.claude/plugins/claude-hud/otel/sess-1.jsonl'),
+    [
+      sampleLine({ ts: '2026-09-11T02:10:00.000Z', outputTokens: 300, durationMs: 3100, ttftMs: 100 }),
+      sampleLine({ ts: '2026-09-11T02:11:00.000Z', outputTokens: 900, durationMs: 3100, ttftMs: 100 }),
+    ].join('\n') + '\n',
+    'utf8',
+  );
+
+  // 1200 tokens over 6000ms. The last sample alone would report 300 tps.
+  const tps = getOtelTps(home, 'sess-1', Date.parse('2026-09-11T02:05:00.000Z'));
+  assert.equal(tps, 200);
+  await rm(home, { recursive: true, force: true });
+});
+
+test('getOtelTps falls back to the last sample when the turn has none yet', async () => {
+  const home = await makeHome();
+  await mkdir(path.join(home, '.claude/plugins/claude-hud/otel'), { recursive: true });
+  await writeFile(
+    path.join(home, '.claude/plugins/claude-hud/otel/sess-1.jsonl'),
+    `${sampleLine({ ts: '2026-09-11T02:00:00.000Z' })}\n`,
+    'utf8',
+  );
+
+  // A newly started turn must hold the previous reading, not blank the segment.
+  const tps = getOtelTps(home, 'sess-1', Date.parse('2026-09-11T02:05:00.000Z'));
+  assert.ok(Math.abs(tps - 170.06) < 0.1, `got ${tps}`);
+  await rm(home, { recursive: true, force: true });
+});
+
+test('isMainChainQuery matches the query sources Claude Code calls the main chain', () => {
+  // Claude Code classifies these as "main" (Di() in the CLI): the REPL thread
+  // with any output-style suffix, and the SDK entrypoint.
+  for (const source of ['repl_main_thread', 'repl_main_thread:outputStyle:Concise', 'sdk']) {
+    assert.equal(isMainChainQuery(source), true, source);
+  }
+});
+
+test('isMainChainQuery rejects subagents and auxiliary calls', () => {
+  // "subagent" in the CLI's classification.
+  for (const source of ['agent:custom', 'agent:default', 'agent:builtin', 'hook_agent']) {
+    assert.equal(isMainChainQuery(source), false, source);
+  }
+  // "auxiliary": not the turn the user is watching.
+  for (const source of ['compact', 'side_question', 'web_search_tool', 'auto_mode']) {
+    assert.equal(isMainChainQuery(source), false, source);
+  }
+});
+
+test('isMainChainQuery treats an absent source as main', () => {
+  // Samples written before this attribute existed, or by a provider that does
+  // not report it, must keep counting rather than silently blank the segment.
+  assert.equal(isMainChainQuery(undefined), true);
+});
+
+test('readTurnAggregate leaves a subagent out of the turn', async () => {
+  const dir = await makeHome();
+  const file = path.join(dir, 's.jsonl');
+  await writeFile(
+    file,
+    [
+      sampleLine({ ts: '2026-09-11T02:10:00.000Z', outputTokens: 300, durationMs: 3100, ttftMs: 100, querySource: 'repl_main_thread' }),
+      // A subagent on the session model: the model name cannot distinguish it,
+      // so only the query source keeps it out of the main thread's rate.
+      sampleLine({ ts: '2026-09-11T02:10:30.000Z', outputTokens: 5000, durationMs: 6000, ttftMs: 100, querySource: 'agent:default' }),
+    ].join('\n') + '\n',
+    'utf8',
+  );
+
+  const agg = readTurnAggregate(file, Date.parse('2026-09-11T02:00:00.000Z'));
+  assert.equal(agg.outputTokens, 300);
+  assert.equal(agg.decodeMs, 3000);
+  await rm(dir, { recursive: true, force: true });
+});
+
+test('readLastSample skips a trailing subagent sample', async () => {
+  const dir = await makeHome();
+  const file = path.join(dir, 's.jsonl');
+  await writeFile(
+    file,
+    [
+      sampleLine({ outputTokens: 900, durationMs: 4000, ttftMs: 400, querySource: 'repl_main_thread' }),
+      sampleLine({ outputTokens: 800, durationMs: 4000, ttftMs: 400, querySource: 'agent:builtin' }),
+    ].join('\n') + '\n',
+    'utf8',
+  );
+
+  const s = readLastSample(file);
+  assert.equal(s.outputTokens, 900);
+  await rm(dir, { recursive: true, force: true });
 });
 
 test('getOtelTps returns null for an invalid session id instead of throwing', async () => {

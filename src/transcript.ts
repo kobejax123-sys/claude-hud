@@ -117,6 +117,7 @@ interface SerializedTranscriptData {
   sessionTokens?: SessionTokenUsage;
   lastCompactBoundaryAt?: string;
   lastCompactPostTokens?: number;
+  lastTurnEndAt?: string;
   compactionCount?: number;
   advisorModel?: string;
   ultracodeActive?: boolean;
@@ -130,7 +131,7 @@ interface TranscriptCacheFile {
   data: SerializedTranscriptData;
 }
 
-const TRANSCRIPT_CACHE_VERSION = 18;
+const TRANSCRIPT_CACHE_VERSION = 19;
 const MCP_TOOL_NAME_PATTERN = /^mcp__(.+?)__(.+)$/;
 const ACTIVITY_NAME_MAX_LEN = 64;
 const MESSAGE_ID_MAX_LEN = 128;
@@ -378,6 +379,7 @@ function serializeTranscriptData(data: TranscriptData): SerializedTranscriptData
     sessionTokens: data.sessionTokens,
     lastCompactBoundaryAt: data.lastCompactBoundaryAt?.toISOString(),
     lastCompactPostTokens: data.lastCompactPostTokens,
+    lastTurnEndAt: data.lastTurnEndAt?.toISOString(),
     compactionCount: data.compactionCount,
     advisorModel: data.advisorModel,
     ultracodeActive: data.ultracodeActive,
@@ -415,6 +417,7 @@ function deserializeTranscriptData(data: SerializedTranscriptData): TranscriptDa
     sessionTokens: normalizeSessionTokens(data.sessionTokens),
     lastCompactBoundaryAt: data.lastCompactBoundaryAt ? new Date(data.lastCompactBoundaryAt) : undefined,
     lastCompactPostTokens: typeof data.lastCompactPostTokens === 'number' ? data.lastCompactPostTokens : undefined,
+    lastTurnEndAt: data.lastTurnEndAt ? new Date(data.lastTurnEndAt) : undefined,
     compactionCount: typeof data.compactionCount === 'number' && Number.isFinite(data.compactionCount) && data.compactionCount >= 0
       ? Math.trunc(data.compactionCount)
       : undefined,
@@ -519,6 +522,7 @@ export async function parseTranscript(transcriptPath: string): Promise<Transcrip
   let latestUltracodeActive: boolean | undefined;
   let lastCompactBoundaryAt: Date | undefined;
   let lastCompactPostTokens: number | undefined;
+  let lastTurnEndAt: Date | undefined;
   let compactionCount = 0;
   const sessionTokens: SessionTokenUsage = {
     inputTokens: 0,
@@ -658,6 +662,15 @@ export async function parseTranscript(transcriptPath: string): Promise<Transcrip
             }
           }
         }
+        // Turn boundaries, used to scope speed sampling to the turn in progress.
+        // Claude Code stamps one of these when a turn ends, so during a turn the
+        // latest one marks where the current turn began.
+        if (entry.type === 'system' && entry.subtype === 'turn_duration') {
+          const ts = entry.timestamp ? new Date(entry.timestamp) : null;
+          if (ts && !Number.isNaN(ts.getTime()) && (!lastTurnEndAt || ts.getTime() > lastTurnEndAt.getTime())) {
+            lastTurnEndAt = ts;
+          }
+        }
         // Capture accurate background-agent completion timestamps from queue-operation entries.
         // The tool_result timestamp in the parent transcript is written at launch time, not
         // when the agent actually finishes, so we override with the enqueue timestamp.
@@ -761,6 +774,7 @@ export async function parseTranscript(transcriptPath: string): Promise<Transcrip
   result.sessionTokens = sessionTokens;
   result.lastCompactBoundaryAt = lastCompactBoundaryAt;
   result.lastCompactPostTokens = lastCompactPostTokens;
+  result.lastTurnEndAt = lastTurnEndAt;
   result.compactionCount = compactionCount;
   result.advisorModel = latestAdvisorModel;
   result.ultracodeActive = latestUltracodeActive;

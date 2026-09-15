@@ -56,6 +56,18 @@ test('extractSamples pulls the api_request record', () => {
   });
 });
 
+test('extractSamples records which chain issued the request', () => {
+  const out = extractSamples(payload([apiRequest({ query_source: 'agent:default' })]));
+  assert.equal(JSON.parse(out[0].line).querySource, 'agent:default');
+});
+
+test('extractSamples omits the chain when the exporter does not report one', () => {
+  // Absent, not empty: the reader treats a missing source as main, and an empty
+  // string would be a third state to reason about.
+  const out = extractSamples(payload([apiRequest({ query_source: undefined })]));
+  assert.equal('querySource' in JSON.parse(out[0].line), false);
+});
+
 test('extractSamples ignores non api_request records', () => {
   const rec = apiRequest();
   rec.body = { stringValue: 'claude_code.user_prompt' };

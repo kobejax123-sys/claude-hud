@@ -178,6 +178,11 @@ export interface TranscriptData {
   sessionTokens?: SessionTokenUsage;
   lastCompactBoundaryAt?: Date;
   lastCompactPostTokens?: number;
+  // Timestamp of the most recent `system`/`turn_duration` record, i.e. when the
+  // last completed turn ended. Speed sampling scopes itself to the requests
+  // recorded after this, which are the ones belonging to the turn in progress.
+  // undefined until the first turn of the session finishes.
+  lastTurnEndAt?: Date;
   // Number of compact_boundary entries (manual /compact or auto compaction)
   // with a valid timestamp seen in the transcript.
   compactionCount?: number;
