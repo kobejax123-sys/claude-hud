@@ -43,6 +43,8 @@ export declare function parseScopedWindows(modelScoped: unknown): ScopedUsageWin
  * Claude Code may include the context window size in the display name
  * (e.g. "Opus 4.6 (1M context)"), but the HUD already shows context
  * usage via the context bar — so the parenthetical is redundant.
+ * Proxied models use a bracketed form instead (e.g. "model[1m]"); only a
+ * trailing size marker is removed so names like "model [beta]" survive.
  */
 export declare function stripContextSuffix(name: string): string;
 /**

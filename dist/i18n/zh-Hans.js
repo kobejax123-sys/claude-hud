@@ -15,6 +15,7 @@ export const zhHans = {
     "label.lastReply": "上次回复",
     "label.advisor": "顾问",
     "label.compactions": "压缩次数",
+    "label.cacheHit": "缓存命中",
     // Status
     "status.limitReached": "已达上限",
     "status.allTodosComplete": "全部完成",
@@ -28,7 +29,7 @@ export const zhHans = {
     "format.cache": "缓存",
     "format.out": "输出",
     "format.tok": "词元",
-    "format.tokPerSec": "tok/s",
+    "format.tokPerSec": "tps",
     "format.justNow": "刚刚",
     "format.relativeTime": "{value} 前",
     // Init

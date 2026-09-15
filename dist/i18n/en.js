@@ -15,6 +15,7 @@ export const en = {
     "label.lastReply": "Last reply",
     "label.advisor": "Advisor",
     "label.compactions": "Compactions",
+    "label.cacheHit": "CacheHit",
     // Status
     "status.limitReached": "Limit reached",
     "status.allTodosComplete": "All todos complete",
@@ -28,7 +29,7 @@ export const en = {
     "format.cache": "cache",
     "format.out": "out",
     "format.tok": "tok",
-    "format.tokPerSec": "tok/s",
+    "format.tokPerSec": "tps",
     "format.justNow": "just now",
     "format.relativeTime": "{value} ago",
     // Init

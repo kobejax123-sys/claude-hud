@@ -30,6 +30,7 @@ export const DEFAULT_MERGE_GROUPS = [
 const PROJECT_LINE_SEGMENTS = [
     'model',
     'project',
+    'cacheHit',
     'advisor',
     'sessionName',
     'version',
@@ -67,6 +68,11 @@ export const DEFAULT_CONFIG = {
         showDirty: true,
         showConflicts: true,
     },
+    otel: {
+        mode: 'auto',
+        autoStart: true,
+        sampleRetentionDays: 7,
+    },
     display: {
         showModel: true,
         showProject: true,
@@ -103,6 +109,8 @@ export const DEFAULT_CONFIG = {
         effortFormat: 'full',
         showMemoryUsage: false,
         showPromptCache: false,
+        showCacheHit: false,
+        cacheHitPlacement: 'firstLine',
         promptCacheTtlSeconds: 300,
         showSessionTokens: false,
         showOutputStyle: false,
@@ -136,6 +144,7 @@ export const DEFAULT_CONFIG = {
     },
     colors: {
         context: 'green',
+        contextTokens: null,
         usage: 'brightBlue',
         warning: 'yellow',
         usageWarning: 'brightMagenta',
@@ -184,6 +193,12 @@ function validateContextValue(value) {
 }
 function validateUsageValue(value) {
     return value === 'percent' || value === 'remaining';
+}
+function validateCacheHitPlacement(value) {
+    return value === 'firstLine' || value === 'stats';
+}
+function validateOtelMode(value) {
+    return value === 'auto' || value === 'off';
 }
 function validateLanguage(value) {
     return value === 'en' || value === 'zh' || value === 'zh-Hans' || value === 'zh-Hant' || value === 'zh-TW';
@@ -468,6 +483,15 @@ export function mergeConfig(userConfig) {
             ? migrated.jjStatus.showConflicts
             : DEFAULT_CONFIG.jjStatus.showConflicts,
     };
+    const otel = {
+        mode: validateOtelMode(migrated.otel?.mode)
+            ? migrated.otel.mode
+            : DEFAULT_CONFIG.otel.mode,
+        autoStart: typeof migrated.otel?.autoStart === 'boolean'
+            ? migrated.otel.autoStart
+            : DEFAULT_CONFIG.otel.autoStart,
+        sampleRetentionDays: validateNonNegativeInteger(migrated.otel?.sampleRetentionDays, DEFAULT_CONFIG.otel.sampleRetentionDays),
+    };
     const display = {
         showModel: typeof migrated.display?.showModel === 'boolean'
             ? migrated.display.showModel
@@ -568,6 +592,12 @@ export function mergeConfig(userConfig) {
         showPromptCache: typeof migrated.display?.showPromptCache === 'boolean'
             ? migrated.display.showPromptCache
             : DEFAULT_CONFIG.display.showPromptCache,
+        showCacheHit: typeof migrated.display?.showCacheHit === 'boolean'
+            ? migrated.display.showCacheHit
+            : DEFAULT_CONFIG.display.showCacheHit,
+        cacheHitPlacement: validateCacheHitPlacement(migrated.display?.cacheHitPlacement)
+            ? migrated.display.cacheHitPlacement
+            : DEFAULT_CONFIG.display.cacheHitPlacement,
         promptCacheTtlSeconds: validateDurationSeconds(migrated.display?.promptCacheTtlSeconds, DEFAULT_CONFIG.display.promptCacheTtlSeconds),
         showSessionTokens: typeof migrated.display?.showSessionTokens === 'boolean'
             ? migrated.display.showSessionTokens
@@ -631,6 +661,9 @@ export function mergeConfig(userConfig) {
         context: validateColorValue(migrated.colors?.context)
             ? migrated.colors.context
             : DEFAULT_CONFIG.colors.context,
+        contextTokens: validateColorValue(migrated.colors?.contextTokens)
+            ? migrated.colors.contextTokens
+            : null,
         usage: validateColorValue(migrated.colors?.usage)
             ? migrated.colors.usage
             : DEFAULT_CONFIG.colors.usage,
@@ -668,7 +701,7 @@ export function mergeConfig(userConfig) {
             ? migrated.colors.barEmpty
             : DEFAULT_CONFIG.colors.barEmpty,
     };
-    return { language, lineLayout, showSeparators, pathLevels, maxWidth, forceMaxWidth, elementOrder, projectLineOrder, gitStatus, jjStatus, display, colors };
+    return { language, lineLayout, showSeparators, pathLevels, maxWidth, forceMaxWidth, elementOrder, projectLineOrder, gitStatus, jjStatus, otel, display, colors };
 }
 function isPlainObject(value) {
     return typeof value === 'object' && value !== null && !Array.isArray(value);

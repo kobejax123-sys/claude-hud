@@ -4,7 +4,7 @@ import { renderToolsLine } from './tools-line.js';
 import { renderSkillsLine, renderMcpLine } from './skills-mcp-line.js';
 import { renderAgentsLine } from './agents-line.js';
 import { renderTodosLine } from './todos-line.js';
-import { renderIdentityLine, renderProjectLine, renderAddedDirsLine, renderGitFilesLine, renderEnvironmentLine, renderPromptCacheLine, renderUsageLine, renderMemoryLine, renderSessionTokensLine, renderCompactionsLine, renderSessionTimeLine, } from './lines/index.js';
+import { renderIdentityLine, renderProjectLine, renderAddedDirsLine, renderGitFilesLine, renderEnvironmentLine, renderPromptCacheLine, renderUsageLine, renderMemoryLine, renderSessionTokensLine, renderStatsLine, renderSessionTimeLine, } from './lines/index.js';
 import { dim, RESET } from './colors.js';
 import { getTerminalWidth, UNKNOWN_TERMINAL_WIDTH } from '../utils/terminal.js';
 import { codePointCellWidth, isCjkAmbiguousWide } from './width.js';
@@ -494,10 +494,11 @@ export function render(ctx) {
                 lines.push(sessionTokensLine);
             }
         }
-        // Compaction count (opt-in, hidden until the first compaction)
-        const compactionsLine = renderCompactionsLine(ctx);
-        if (compactionsLine) {
-            lines.push(compactionsLine);
+        // Stats line: compaction count, plus the cache hit rate when it is
+        // configured to render here instead of the first line.
+        const statsLine = renderStatsLine(ctx);
+        if (statsLine) {
+            lines.push(statsLine);
         }
         // Advisor is rendered inline on the project line; see renderProjectLine.
         if (showSeparators) {

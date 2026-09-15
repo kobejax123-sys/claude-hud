@@ -3,6 +3,9 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { createHash } from 'node:crypto';
 import { getHudPluginDir } from './claude-config-dir.js';
+import { getOtelTps } from './otel/client.js';
+import { ensureReceiver, isTelemetryEnabled, readSettingsOtelEndpoint, resolveOtelEndpoint, } from './otel/lifecycle.js';
+import { isValidSessionId } from './otel/paths.js';
 import { createDebug } from './debug.js';
 const debug = createDebug('speed-tracker');
 const SPEED_WINDOW_MS = 2000;
@@ -202,5 +205,45 @@ export function getOutputSpeed(stdin, overrides = {}) {
     // Fallback: estimate from transcript file byte-size growth when the
     // provider does not expose output_tokens (e.g. non-standard proxies).
     return getTranscriptSpeed(transcriptPath, homeDir, now);
+}
+/**
+ * The rate to display in the speed segment: the last request-level measurement
+ * reported by Claude Code's OpenTelemetry export, or null when nothing has been
+ * measured yet.
+ *
+ * The snapshot-based estimate is deliberately not used as a fallback. A number
+ * derived from refresh timing disagrees with the measured one often enough to be
+ * misleading, so callers render an explicit placeholder instead.
+ */
+export function getMeasuredTps(stdin, config, overrides = {}, turnEndedAt) {
+    // Several test fixtures and third-party callers build config objects by hand
+    // without the otel block; a missing block means "not configured" rather than
+    // a crash.
+    const otel = config?.otel;
+    if (!otel || otel.mode === 'off')
+        return null;
+    if (!isTelemetryEnabled(process.env))
+        return null;
+    const sessionId = stdin.session_id;
+    if (!isValidSessionId(sessionId))
+        return null;
+    const deps = { ...defaultDeps, ...overrides };
+    const homeDir = deps.homeDir();
+    if (otel.autoStart) {
+        // The endpoint the statusLine sees is stripped of OTEL_*, so the settings
+        // files are what tells a loopback endpoint from a remote one — getting this
+        // wrong means starting a receiver that can never receive anything.
+        const endpoint = resolveOtelEndpoint(process.env, readSettingsOtelEndpoint(homeDir, stdin.cwd));
+        // Fire and forget: the render must not wait on the receiver's port probe, and
+        // the process stays alive until the probe settles.
+        void ensureReceiver({
+            homeDir,
+            endpoint,
+            retentionDays: otel.sampleRetentionDays,
+        }).catch(() => {
+            // Lazy start never fails the render.
+        });
+    }
+    return getOtelTps(homeDir, sessionId, turnEndedAt?.getTime() ?? null);
 }
 //# sourceMappingURL=speed-tracker.js.map

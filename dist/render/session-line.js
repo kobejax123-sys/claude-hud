@@ -1,9 +1,10 @@
 import { isLimitReached } from '../types.js';
 import { getContextPercent, getBufferedPercent, formatModelName, resolveModelName, shouldHideUsage } from '../stdin.js';
-import { getOutputSpeed } from '../speed-tracker.js';
-import { coloredBar, critical, git as gitColor, gitBranch as gitBranchColor, label, model as modelColor, project as projectColor, getContextColor, getQuotaColor, quotaBar, custom as customColor, RESET } from './colors.js';
+import { getMeasuredTps } from '../speed-tracker.js';
+import { coloredBar, colorizeContextValue, critical, git as gitColor, gitBranch as gitBranchColor, label, model as modelColor, project as projectColor, getQuotaColor, quotaBar, custom as customColor, RESET } from './colors.js';
 import { getAdaptiveBarWidth } from '../utils/terminal.js';
 import { renderCostEstimate } from './lines/cost.js';
+import { renderCacheHitSegment } from './lines/cache-hit.js';
 import { renderPromptCacheLine } from './lines/prompt-cache.js';
 import { renderSessionTimeLine } from './lines/session-time.js';
 import { renderAdvisorLine } from './lines/advisor.js';
@@ -50,8 +51,7 @@ export function renderSessionLine(ctx) {
     };
     const resetsKey = timeFormat === 'absolute' ? 'format.resets' : 'format.resetsIn';
     const contextValueMode = display?.contextValue ?? 'percent';
-    const contextValue = formatContextValue(ctx, percent, contextValueMode);
-    const contextValueDisplay = `${getContextColor(percent, colors, contextThresholds)}${contextValue}${RESET}`;
+    const contextValueDisplay = colorizeContextValue(formatContextValue(ctx, percent, contextValueMode), percent, contextValueMode, colors, contextThresholds);
     const customLine = display?.customLine;
     const customLinePosition = display?.customLinePosition ?? 'last';
     if (customLine && customLinePosition === 'first') {
@@ -129,6 +129,12 @@ export function renderSessionLine(ctx) {
     }
     else if (gitPart) {
         push(gitPart, 'project');
+    }
+    if (display?.cacheHitPlacement !== 'stats') {
+        const cacheHitPart = renderCacheHitSegment(ctx);
+        if (cacheHitPart) {
+            push(cacheHitPart, 'cacheHit');
+        }
     }
     // Session name (custom title from /rename, or auto-generated slug)
     if (display?.showSessionName && ctx.transcript.sessionName) {
@@ -305,6 +311,14 @@ export function renderSessionLine(ctx) {
             push(label(summary, colors));
         }
     }
+    // Compact layout has no separate stats line, so a "stats" placement keeps
+    // the cache hit segment on this line, next to the compaction count.
+    if (display?.cacheHitPlacement === 'stats') {
+        const cacheHitPart = renderCacheHitSegment(ctx);
+        if (cacheHitPart) {
+            push(cacheHitPart);
+        }
+    }
     // Compaction count from transcript compact_boundary entries (opt-in,
     // hidden until the first compaction)
     if (display?.showCompactions) {
@@ -336,10 +350,11 @@ export function renderSessionLine(ctx) {
         push(costEstimate, 'cost');
     }
     if (display?.showSpeed) {
-        const speed = getOutputSpeed(ctx.stdin);
-        if (speed !== null) {
-            push(label(`${t('format.out')}: ${speed.toFixed(1)} ${t('format.tokPerSec')}`, colors), 'speed');
-        }
+        // Stays on the last measured rate for the whole session; `--` until the first
+        // request has been measured, mirroring how the cache hit segment reads.
+        const tps = getMeasuredTps(ctx.stdin, ctx.config, {}, ctx.transcript.lastTurnEndAt);
+        const value = tps === null ? '--' : `${Math.round(tps)} ${t('format.tokPerSec')}`;
+        push(label(`${t('format.out')}: ${value}`, colors), 'speed');
     }
     if (ctx.extraLabel) {
         push(label(ctx.extraLabel, colors), 'extra');

@@ -3,6 +3,8 @@ export type LineLayoutType = 'compact' | 'expanded';
 export type AutocompactBufferMode = 'enabled' | 'disabled';
 export type ContextValueMode = 'percent' | 'tokens' | 'remaining' | 'both';
 export type UsageValueMode = 'percent' | 'remaining';
+export type CacheHitPlacement = 'firstLine' | 'stats';
+export type OtelMode = 'auto' | 'off';
 export type GitBranchOverflowMode = 'truncate' | 'wrap';
 /**
  * Controls how the model name is displayed in the HUD badge.
@@ -42,6 +44,7 @@ export type HudElement = 'project' | 'addedDirs' | 'context' | 'usage' | 'prompt
  *   model:       provider + model badge + effort (compact mode also keeps the
  *                context bar attached to this segment)
  *   project:     project path + added dirs + git status (kept as one segment)
+ *   cacheHit:    prompt cache hit rate of the most recent request
  *   advisor:     advisor model label
  *   sessionName: session title from /rename
  *   version:     Claude Code version
@@ -51,13 +54,14 @@ export type HudElement = 'project' | 'addedDirs' | 'context' | 'usage' | 'prompt
  *   speed:       output speed
  *   auth:        auth method / account
  */
-export type FirstLineSegment = 'model' | 'project' | 'advisor' | 'sessionName' | 'version' | 'extra' | 'duration' | 'cost' | 'speed' | 'auth';
+export type FirstLineSegment = 'model' | 'project' | 'cacheHit' | 'advisor' | 'sessionName' | 'version' | 'extra' | 'duration' | 'cost' | 'speed' | 'auth';
 export type AddedDirsLayout = 'inline' | 'line';
 export type HudColorName = 'dim' | 'red' | 'green' | 'yellow' | 'magenta' | 'cyan' | 'brightBlue' | 'brightMagenta';
 /** A color value: named preset, 256-color index (0-255), or hex string (#rrggbb). */
 export type HudColorValue = HudColorName | number | string;
 export interface HudColorOverrides {
     context: HudColorValue;
+    contextTokens: HudColorValue | null;
     usage: HudColorValue;
     warning: HudColorValue;
     usageWarning: HudColorValue;
@@ -97,6 +101,17 @@ export interface HudConfig {
         showDirty: boolean;
         showConflicts: boolean;
     };
+    otel: {
+        /**
+         * `auto` uses OpenTelemetry data whenever the environment carries telemetry
+         * settings; `off` always uses the estimate.
+         */
+        mode: OtelMode;
+        /** When false the HUD never spawns the receiver; the user runs it manually. */
+        autoStart: boolean;
+        /** Sample files older than this many days are pruned by the receiver. */
+        sampleRetentionDays: number;
+    };
     display: {
         showModel: boolean;
         showProject: boolean;
@@ -133,6 +148,8 @@ export interface HudConfig {
         effortFormat: EffortFormatMode;
         showMemoryUsage: boolean;
         showPromptCache: boolean;
+        showCacheHit: boolean;
+        cacheHitPlacement: CacheHitPlacement;
         promptCacheTtlSeconds: number;
         showSessionTokens: boolean;
         showOutputStyle: boolean;

@@ -15,6 +15,7 @@ export const zhHant = {
     "label.lastReply": "上次回覆",
     "label.advisor": "顧問",
     "label.compactions": "壓縮次數",
+    "label.cacheHit": "快取命中",
     // Status
     "status.limitReached": "已達上限",
     "status.allTodosComplete": "全部完成",
@@ -28,7 +29,7 @@ export const zhHant = {
     "format.cache": "快取",
     "format.out": "輸出",
     "format.tok": "tok",
-    "format.tokPerSec": "tok/s",
+    "format.tokPerSec": "tps",
     "format.justNow": "剛剛",
     "format.relativeTime": "{value} 前",
     // Init

@@ -1,4 +1,4 @@
-import type { HudColorOverrides } from '../config.js';
+import type { ContextValueMode, HudColorOverrides } from '../config.js';
 export declare const RESET = "\u001B[0m";
 export declare function green(text: string): string;
 export declare function yellow(text: string): string;
@@ -20,6 +20,12 @@ export interface ContextThresholds {
     critical?: number;
 }
 export declare function getContextColor(percent: number, colors?: Partial<HudColorOverrides>, thresholds?: ContextThresholds): string;
+/**
+ * Color a formatted context value. The health color covers the percentage and
+ * the bar; `colors.contextTokens`, when set, takes over the token parenthetical
+ * produced by `contextValue: "both"` so it reads as secondary information.
+ */
+export declare function colorizeContextValue(value: string, percent: number, mode: ContextValueMode, colors?: Partial<HudColorOverrides>, thresholds?: ContextThresholds): string;
 export declare function getQuotaColor(percent: number, colors?: Partial<HudColorOverrides>): string;
 export declare function quotaBar(percent: number, width?: number, colors?: Partial<HudColorOverrides>): string;
 export declare function coloredBar(percent: number, width?: number, colors?: Partial<HudColorOverrides>, thresholds?: ContextThresholds): string;

@@ -101,6 +101,21 @@ export function getContextColor(percent, colors, thresholds) {
         return resolveAnsi(colors?.warning, YELLOW);
     return resolveAnsi(colors?.context, GREEN);
 }
+/**
+ * Color a formatted context value. The health color covers the percentage and
+ * the bar; `colors.contextTokens`, when set, takes over the token parenthetical
+ * produced by `contextValue: "both"` so it reads as secondary information.
+ */
+export function colorizeContextValue(value, percent, mode, colors, thresholds) {
+    const healthColor = getContextColor(percent, colors, thresholds);
+    const splitAt = mode === 'both' ? value.indexOf(' (') : -1;
+    const detailValue = colors?.contextTokens;
+    if (splitAt < 0 || detailValue === undefined || detailValue === null) {
+        return colorize(value, healthColor);
+    }
+    const detailColor = resolveAnsi(detailValue, healthColor);
+    return `${colorize(value.slice(0, splitAt), healthColor)} ${colorize(value.slice(splitAt + 1), detailColor)}`;
+}
 export function getQuotaColor(percent, colors) {
     if (percent >= 90)
         return resolveAnsi(colors?.critical, RED);

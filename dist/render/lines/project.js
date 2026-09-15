@@ -1,10 +1,11 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { formatModelName, resolveModelName } from '../../stdin.js';
-import { getOutputSpeed } from '../../speed-tracker.js';
+import { getMeasuredTps } from '../../speed-tracker.js';
 import { git as gitColor, gitBranch as gitBranchColor, warning as warningColor, critical as criticalColor, label, model as modelColor, project as projectColor, red, green, yellow, dim, custom as customColor } from '../colors.js';
 import { t } from '../../i18n/index.js';
 import { renderCostEstimate } from './cost.js';
+import { renderCacheHitSegment } from './cache-hit.js';
 import { renderAdvisorLine } from './advisor.js';
 import { normalizeAddedDirs, sanitize as sanitizeDisplayText, basenameOf, truncateBasename, MAX_RENDERED_ADDED_DIRS } from './added-dirs.js';
 import { getFileHref, safeHyperlink } from '../../utils/hyperlinks.js';
@@ -110,6 +111,12 @@ export function renderProjectLine(ctx) {
     else if (gitPart) {
         push(gitPart, 'project');
     }
+    if (display?.cacheHitPlacement !== 'stats') {
+        const cacheHitPart = renderCacheHitSegment(ctx);
+        if (cacheHitPart) {
+            push(cacheHitPart, 'cacheHit');
+        }
+    }
     // Advisor model sits inline with the model/project/git badge so the
     // configured /advisor is visible on the first line at a glance.
     if (display?.showAdvisor) {
@@ -135,10 +142,11 @@ export function renderProjectLine(ctx) {
         push(costEstimate, 'cost');
     }
     if (display?.showSpeed) {
-        const speed = getOutputSpeed(ctx.stdin);
-        if (speed !== null) {
-            push(label(`${t('format.out')}: ${speed.toFixed(1)} ${t('format.tokPerSec')}`, colors), 'speed');
-        }
+        // Stays on the last measured rate for the whole session; `--` until the first
+        // request has been measured, mirroring how the cache hit segment reads.
+        const tps = getMeasuredTps(ctx.stdin, ctx.config, {}, ctx.transcript.lastTurnEndAt);
+        const value = tps === null ? '--' : `${Math.round(tps)} ${t('format.tokPerSec')}`;
+        push(label(`${t('format.out')}: ${value}`, colors), 'speed');
     }
     const authSegment = formatAuthSegment(ctx.authInfo, display);
     if (authSegment) {
