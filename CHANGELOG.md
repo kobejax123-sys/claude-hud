@@ -8,6 +8,9 @@ All notable changes to Claude HUD will be documented in this file.
 - `display.showDailyCost` option to show today's cumulative spend across sessions (`Today $12.34`), accumulated from the native stdin `cost.total_cost_usd` into a per-day ledger that resets at local midnight (#695).
 
 ### Fixed
+- Hold the last completed turn's `display.showSpeed` rate between turns instead of dropping back to the last single request: the moment a turn ends its `turn_duration` record becomes the new boundary, so the turn aggregate only showed while a reply was streaming.
+- Aggregate `display.showSpeed` from the session start while the first turn is still running, rather than reading the last single request.
+- Keep 64 KB when trimming an oversized OTel sample file, matching the window the turn aggregate reads; the old 8 KB dropped the turn's earlier requests.
 - Refresh the prompt-cache clock when a request starts rather than when its response arrives, ignoring client-side slash command records, interrupt markers, and subagent requests (#719).
 - Treat Agent `tool_result` payloads with `isAsync` or `status: async_launched` as background so the agents line stays up until the task-notification (#734).
 - Pass `--no-optional-locks` on `git diff --numstat` so a timed-out statusline poll cannot leave `.git/index.lock` behind (#726).

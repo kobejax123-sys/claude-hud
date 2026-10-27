@@ -183,6 +183,10 @@ export interface TranscriptData {
   // recorded after this, which are the ones belonging to the turn in progress.
   // undefined until the first turn of the session finishes.
   lastTurnEndAt?: Date;
+  // The `turn_duration` record before that one, i.e. where the last completed
+  // turn began. Lets the speed segment hold that turn's rate until the turn in
+  // progress produces one. undefined until the second turn finishes.
+  previousTurnEndAt?: Date;
   // Number of compact_boundary entries (manual /compact or auto compaction)
   // with a valid timestamp seen in the transcript.
   compactionCount?: number;

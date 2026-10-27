@@ -206,7 +206,10 @@ test('appendSamples trims a sample file that outgrew the cap', async () => {
   }]);
 
   const size = (await stat(file)).size;
-  assert.ok(size < 64 * 1024, `expected a trimmed file, got ${size} bytes`);
+  assert.ok(size < 128 * 1024, `expected a trimmed file, got ${size} bytes`);
+  // A turn's aggregate reads the last 64 KB, so trimming must leave that much
+  // behind or it would drop the turn's earlier requests.
+  assert.ok(size >= 64 * 1024 - filler.length, `trimmed below the turn window, got ${size} bytes`);
 
   const lines = (await readFile(file, 'utf8')).trim().split('\n');
   assert.deepEqual(JSON.parse(lines[lines.length - 1]).outputTokens, 7);

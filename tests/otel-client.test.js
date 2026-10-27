@@ -313,6 +313,91 @@ test('getOtelTps falls back to the last sample when the turn has none yet', asyn
   await rm(home, { recursive: true, force: true });
 });
 
+test('readTurnAggregate leaves out samples recorded after the upper bound', async () => {
+  const dir = await makeHome();
+  const file = path.join(dir, 's.jsonl');
+  await writeFile(
+    file,
+    [
+      sampleLine({ ts: '2026-09-11T02:10:00.000Z', outputTokens: 300, durationMs: 3100, ttftMs: 100 }),
+      sampleLine({ ts: '2026-09-11T02:20:00.000Z', outputTokens: 900, durationMs: 3100, ttftMs: 100 }),
+    ].join('\n') + '\n',
+    'utf8',
+  );
+
+  const agg = readTurnAggregate(
+    file,
+    Date.parse('2026-09-11T02:05:00.000Z'),
+    Date.parse('2026-09-11T02:15:00.000Z'),
+  );
+  assert.equal(agg.outputTokens, 300);
+  assert.equal(agg.decodeMs, 3000);
+  await rm(dir, { recursive: true, force: true });
+});
+
+test('getOtelTps holds the previous turn aggregate when the new turn has none yet', async () => {
+  const home = await makeHome();
+  await mkdir(path.join(home, '.claude/plugins/claude-hud/otel'), { recursive: true });
+  await writeFile(
+    path.join(home, '.claude/plugins/claude-hud/otel/sess-1.jsonl'),
+    [
+      // Two turns back: 600 over 3000ms = 200 tps.
+      sampleLine({ ts: '2026-09-11T02:00:00.000Z', outputTokens: 600, durationMs: 3100, ttftMs: 100 }),
+      // Previous turn: 300 over 3000ms and 600 over 1000ms.
+      sampleLine({ ts: '2026-09-11T02:10:00.000Z', outputTokens: 300, durationMs: 3100, ttftMs: 100 }),
+      sampleLine({ ts: '2026-09-11T02:11:00.000Z', outputTokens: 600, durationMs: 1100, ttftMs: 100 }),
+    ].join('\n') + '\n',
+    'utf8',
+  );
+
+  // 900 tokens over 4000ms. The last sample alone would report 600 tps.
+  const tps = getOtelTps(
+    home,
+    'sess-1',
+    Date.parse('2026-09-11T02:15:00.000Z'),
+    Date.parse('2026-09-11T02:05:00.000Z'),
+  );
+  assert.equal(tps, 225);
+  await rm(home, { recursive: true, force: true });
+});
+
+test('getOtelTps treats the first turn as starting at the session start', async () => {
+  const home = await makeHome();
+  await mkdir(path.join(home, '.claude/plugins/claude-hud/otel'), { recursive: true });
+  await writeFile(
+    path.join(home, '.claude/plugins/claude-hud/otel/sess-1.jsonl'),
+    [
+      sampleLine({ ts: '2026-09-11T02:10:00.000Z', outputTokens: 300, durationMs: 3100, ttftMs: 100 }),
+      sampleLine({ ts: '2026-09-11T02:11:00.000Z', outputTokens: 600, durationMs: 1100, ttftMs: 100 }),
+    ].join('\n') + '\n',
+    'utf8',
+  );
+
+  // Only one turn has ended, so there is no earlier boundary to bound it by.
+  const tps = getOtelTps(home, 'sess-1', Date.parse('2026-09-11T02:15:00.000Z'), null);
+  assert.equal(tps, 225);
+  await rm(home, { recursive: true, force: true });
+});
+
+test('getOtelTps aggregates from the session start before the first turn ends', async () => {
+  const home = await makeHome();
+  await mkdir(path.join(home, '.claude/plugins/claude-hud/otel'), { recursive: true });
+  await writeFile(
+    path.join(home, '.claude/plugins/claude-hud/otel/sess-1.jsonl'),
+    [
+      sampleLine({ ts: '2026-09-11T02:10:00.000Z', outputTokens: 300, durationMs: 3100, ttftMs: 100 }),
+      sampleLine({ ts: '2026-09-11T02:11:00.000Z', outputTokens: 600, durationMs: 1100, ttftMs: 100 }),
+    ].join('\n') + '\n',
+    'utf8',
+  );
+
+  // No turn has ended, so there is no boundary at all. The last sample alone
+  // would report 600 tps.
+  const tps = getOtelTps(home, 'sess-1', null, null);
+  assert.equal(tps, 225);
+  await rm(home, { recursive: true, force: true });
+});
+
 test('isMainChainQuery matches the query sources Claude Code calls the main chain', () => {
   // Claude Code classifies these as "main" (Di() in the CLI): the REPL thread
   // with any output-style suffix, and the SDK entrypoint.

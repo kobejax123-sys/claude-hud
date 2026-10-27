@@ -937,6 +937,27 @@ test('parseTranscript ignores compact_boundary entries without a valid timestamp
   }
 });
 
+test('parseTranscript keeps the last two turn_duration boundaries', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'claude-hud-'));
+  const filePath = path.join(dir, 'turn-duration.jsonl');
+  const lines = [
+    JSON.stringify({ type: 'system', subtype: 'turn_duration', timestamp: '2024-01-01T00:01:00.000Z' }),
+    JSON.stringify({ type: 'system', subtype: 'turn_duration', timestamp: '2024-01-01T00:02:00.000Z' }),
+    JSON.stringify({ type: 'system', subtype: 'turn_duration', timestamp: 'not-a-date' }),
+    JSON.stringify({ type: 'system', subtype: 'turn_duration', timestamp: '2024-01-01T00:03:00.000Z' }),
+  ];
+
+  await writeFile(filePath, lines.join('\n'), 'utf8');
+
+  try {
+    const result = await parseTranscript(filePath);
+    assert.equal(result.lastTurnEndAt?.toISOString(), '2024-01-01T00:03:00.000Z');
+    assert.equal(result.previousTurnEndAt?.toISOString(), '2024-01-01T00:02:00.000Z');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('parseTranscript captures the last assistant response timestamp', async () => {
   const dir = await mkdtemp(path.join(tmpdir(), 'claude-hud-'));
   const filePath = path.join(dir, 'assistant-timestamp.jsonl');

@@ -16,10 +16,10 @@ export const MAX_SAMPLE_FILE_BYTES = 8 * 1024 * 1024;
 
 /**
  * Trimmed files keep this much of their tail. It must not be smaller than the
- * reader's window (`TAIL_BYTES` in client.ts), or trimming would discard the only
- * samples the HUD can still read.
+ * reader's widest window (`TURN_TAIL_BYTES` in client.ts), or trimming would
+ * discard samples the turn aggregate still reads.
  */
-const TRIM_KEEP_BYTES = 8192;
+const TRIM_KEEP_BYTES = 64 * 1024;
 
 /**
  * Ceilings for the sample directory as a whole. The per-file cap alone does not
