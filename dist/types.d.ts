@@ -155,6 +155,7 @@ export interface TranscriptData {
     lastCompactBoundaryAt?: Date;
     lastCompactPostTokens?: number;
     lastTurnEndAt?: Date;
+    previousTurnEndAt?: Date;
     compactionCount?: number;
     advisorModel?: string;
     ultracodeActive?: boolean;

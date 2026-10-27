@@ -14,5 +14,5 @@ export declare function getOutputSpeed(stdin: StdinData, overrides?: Partial<Spe
  * derived from refresh timing disagrees with the measured one often enough to be
  * misleading, so callers render an explicit placeholder instead.
  */
-export declare function getMeasuredTps(stdin: StdinData, config?: HudConfig, overrides?: Partial<SpeedTrackerDeps>, turnEndedAt?: Date): number | null;
+export declare function getMeasuredTps(stdin: StdinData, config?: HudConfig, overrides?: Partial<SpeedTrackerDeps>, turnEndedAt?: Date, previousTurnEndedAt?: Date): number | null;
 //# sourceMappingURL=speed-tracker.d.ts.map

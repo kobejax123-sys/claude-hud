@@ -34,7 +34,8 @@ export interface TurnAggregate {
     decodeMs: number;
 }
 /**
- * Sums the measured requests recorded after `sinceMs` — one turn's worth.
+ * Sums the measured requests recorded after `sinceMs` and no later than
+ * `untilMs` — one turn's worth.
  *
  * A single request is a poor sample: a turn that only issues tool calls is all
  * short replies whose fixed per-request cost lands in the denominator, and any
@@ -52,17 +53,20 @@ export interface TurnAggregate {
  * Returns null when the turn has produced nothing measurable yet, which leaves
  * the caller free to keep showing the previous turn's rate.
  */
-export declare function readTurnAggregate(filePath: string, sinceMs: number): TurnAggregate | null;
+export declare function readTurnAggregate(filePath: string, sinceMs: number, untilMs?: number): TurnAggregate | null;
 /**
  * The most recent measured rate for a session, or null when nothing has been
  * recorded yet. Deliberately not time-bounded: the speed segment is meant to
  * stay on the last measured value rather than decay back to a placeholder.
  *
- * When `sinceMs` is given the rate is aggregated over the requests recorded
- * after it — the turn in progress — which is what the statusline shows. A turn
- * that has not yet produced a measurable request falls back to the last single
- * sample, so the segment holds its previous reading instead of blanking at the
- * start of every turn.
+ * The rate is aggregated over the requests recorded after `sinceMs` — the turn
+ * in progress, from the session start when `sinceMs` is null — which is what
+ * the statusline shows. A turn
+ * that has not yet produced a measurable request holds the last completed
+ * turn's aggregate, the requests between `previousSinceMs` and `sinceMs` (from
+ * the session start when `previousSinceMs` is null). Only when that turn has
+ * nothing measurable either does it fall back to the last single sample, so the
+ * segment never blanks at the start of a turn.
  */
-export declare function getOtelTps(homeDir: string, sessionId: string, sinceMs?: number | null): number | null;
+export declare function getOtelTps(homeDir: string, sessionId: string, sinceMs?: number | null, previousSinceMs?: number | null): number | null;
 //# sourceMappingURL=client.d.ts.map

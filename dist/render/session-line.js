@@ -352,7 +352,7 @@ export function renderSessionLine(ctx) {
     if (display?.showSpeed) {
         // Stays on the last measured rate for the whole session; `--` until the first
         // request has been measured, mirroring how the cache hit segment reads.
-        const tps = getMeasuredTps(ctx.stdin, ctx.config, {}, ctx.transcript.lastTurnEndAt);
+        const tps = getMeasuredTps(ctx.stdin, ctx.config, {}, ctx.transcript.lastTurnEndAt, ctx.transcript.previousTurnEndAt);
         const value = tps === null ? '--' : `${Math.round(tps)} ${t('format.tokPerSec')}`;
         push(label(`${t('format.out')}: ${value}`, colors), 'speed');
     }

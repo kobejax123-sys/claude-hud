@@ -174,7 +174,8 @@ export function readLastSample(filePath) {
     return null;
 }
 /**
- * Sums the measured requests recorded after `sinceMs` — one turn's worth.
+ * Sums the measured requests recorded after `sinceMs` and no later than
+ * `untilMs` — one turn's worth.
  *
  * A single request is a poor sample: a turn that only issues tool calls is all
  * short replies whose fixed per-request cost lands in the denominator, and any
@@ -192,7 +193,7 @@ export function readLastSample(filePath) {
  * Returns null when the turn has produced nothing measurable yet, which leaves
  * the caller free to keep showing the previous turn's rate.
  */
-export function readTurnAggregate(filePath, sinceMs) {
+export function readTurnAggregate(filePath, sinceMs, untilMs = Number.POSITIVE_INFINITY) {
     const lines = readTailLines(filePath, TURN_TAIL_BYTES);
     if (!lines)
         return null;
@@ -209,7 +210,7 @@ export function readTurnAggregate(filePath, sinceMs) {
         // must be skipped rather than compared as NaN, which is false for every
         // ordering and would silently drop the sample.
         const at = Date.parse(parsed.ts);
-        if (!Number.isFinite(at) || at <= sinceMs)
+        if (!Number.isFinite(at) || at <= sinceMs || at > untilMs)
             continue;
         outputTokens += parsed.outputTokens;
         decodeMs += parsed.durationMs - parsed.ttftMs;
@@ -223,13 +224,16 @@ export function readTurnAggregate(filePath, sinceMs) {
  * recorded yet. Deliberately not time-bounded: the speed segment is meant to
  * stay on the last measured value rather than decay back to a placeholder.
  *
- * When `sinceMs` is given the rate is aggregated over the requests recorded
- * after it — the turn in progress — which is what the statusline shows. A turn
- * that has not yet produced a measurable request falls back to the last single
- * sample, so the segment holds its previous reading instead of blanking at the
- * start of every turn.
+ * The rate is aggregated over the requests recorded after `sinceMs` — the turn
+ * in progress, from the session start when `sinceMs` is null — which is what
+ * the statusline shows. A turn
+ * that has not yet produced a measurable request holds the last completed
+ * turn's aggregate, the requests between `previousSinceMs` and `sinceMs` (from
+ * the session start when `previousSinceMs` is null). Only when that turn has
+ * nothing measurable either does it fall back to the last single sample, so the
+ * segment never blanks at the start of a turn.
  */
-export function getOtelTps(homeDir, sessionId, sinceMs = null) {
+export function getOtelTps(homeDir, sessionId, sinceMs = null, previousSinceMs = null) {
     let samplePath;
     try {
         samplePath = getSamplePath(homeDir, sessionId);
@@ -237,11 +241,14 @@ export function getOtelTps(homeDir, sessionId, sinceMs = null) {
     catch {
         return null;
     }
-    if (sinceMs !== null) {
-        const aggregate = readTurnAggregate(samplePath, sinceMs);
-        if (aggregate)
-            return aggregate.outputTokens / (aggregate.decodeMs / 1000);
-    }
+    // No boundary means the first turn is still running (or this Claude Code does
+    // not write `turn_duration`), so the turn in progress started with the session.
+    const aggregate = readTurnAggregate(samplePath, sinceMs ?? Number.NEGATIVE_INFINITY)
+        ?? (sinceMs !== null
+            ? readTurnAggregate(samplePath, previousSinceMs ?? Number.NEGATIVE_INFINITY, sinceMs)
+            : null);
+    if (aggregate)
+        return aggregate.outputTokens / (aggregate.decodeMs / 1000);
     const sample = readLastSample(samplePath);
     if (!sample)
         return null;

@@ -9,7 +9,7 @@ import { sanitizeDisplayText } from './utils/sanitize.js';
 import { sanitizeTranscriptModel } from './model-source.js';
 import { isDetectedPromptCacheTtl, PROMPT_CACHE_TTL_1H_SECONDS, PROMPT_CACHE_TTL_5M_SECONDS, } from './constants.js';
 const debug = createDebug('transcript');
-const TRANSCRIPT_CACHE_VERSION = 19;
+const TRANSCRIPT_CACHE_VERSION = 20;
 const MCP_TOOL_NAME_PATTERN = /^mcp__(.+?)__(.+)$/;
 const ACTIVITY_NAME_MAX_LEN = 64;
 const MESSAGE_ID_MAX_LEN = 128;
@@ -219,6 +219,7 @@ function serializeTranscriptData(data) {
         lastCompactBoundaryAt: data.lastCompactBoundaryAt?.toISOString(),
         lastCompactPostTokens: data.lastCompactPostTokens,
         lastTurnEndAt: data.lastTurnEndAt?.toISOString(),
+        previousTurnEndAt: data.previousTurnEndAt?.toISOString(),
         compactionCount: data.compactionCount,
         advisorModel: data.advisorModel,
         ultracodeActive: data.ultracodeActive,
@@ -256,6 +257,7 @@ function deserializeTranscriptData(data) {
         lastCompactBoundaryAt: data.lastCompactBoundaryAt ? new Date(data.lastCompactBoundaryAt) : undefined,
         lastCompactPostTokens: typeof data.lastCompactPostTokens === 'number' ? data.lastCompactPostTokens : undefined,
         lastTurnEndAt: data.lastTurnEndAt ? new Date(data.lastTurnEndAt) : undefined,
+        previousTurnEndAt: data.previousTurnEndAt ? new Date(data.previousTurnEndAt) : undefined,
         compactionCount: typeof data.compactionCount === 'number' && Number.isFinite(data.compactionCount) && data.compactionCount >= 0
             ? Math.trunc(data.compactionCount)
             : undefined,
@@ -354,6 +356,7 @@ export async function parseTranscript(transcriptPath) {
     let lastCompactBoundaryAt;
     let lastCompactPostTokens;
     let lastTurnEndAt;
+    let previousTurnEndAt;
     let compactionCount = 0;
     const sessionTokens = {
         inputTokens: 0,
@@ -494,6 +497,7 @@ export async function parseTranscript(transcriptPath) {
                 if (entry.type === 'system' && entry.subtype === 'turn_duration') {
                     const ts = entry.timestamp ? new Date(entry.timestamp) : null;
                     if (ts && !Number.isNaN(ts.getTime()) && (!lastTurnEndAt || ts.getTime() > lastTurnEndAt.getTime())) {
+                        previousTurnEndAt = lastTurnEndAt;
                         lastTurnEndAt = ts;
                     }
                 }
@@ -595,6 +599,7 @@ export async function parseTranscript(transcriptPath) {
     result.lastCompactBoundaryAt = lastCompactBoundaryAt;
     result.lastCompactPostTokens = lastCompactPostTokens;
     result.lastTurnEndAt = lastTurnEndAt;
+    result.previousTurnEndAt = previousTurnEndAt;
     result.compactionCount = compactionCount;
     result.advisorModel = latestAdvisorModel;
     result.ultracodeActive = latestUltracodeActive;

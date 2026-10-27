@@ -215,7 +215,7 @@ export function getOutputSpeed(stdin, overrides = {}) {
  * derived from refresh timing disagrees with the measured one often enough to be
  * misleading, so callers render an explicit placeholder instead.
  */
-export function getMeasuredTps(stdin, config, overrides = {}, turnEndedAt) {
+export function getMeasuredTps(stdin, config, overrides = {}, turnEndedAt, previousTurnEndedAt) {
     // Several test fixtures and third-party callers build config objects by hand
     // without the otel block; a missing block means "not configured" rather than
     // a crash.
@@ -244,6 +244,6 @@ export function getMeasuredTps(stdin, config, overrides = {}, turnEndedAt) {
             // Lazy start never fails the render.
         });
     }
-    return getOtelTps(homeDir, sessionId, turnEndedAt?.getTime() ?? null);
+    return getOtelTps(homeDir, sessionId, turnEndedAt?.getTime() ?? null, previousTurnEndedAt?.getTime() ?? null);
 }
 //# sourceMappingURL=speed-tracker.js.map
