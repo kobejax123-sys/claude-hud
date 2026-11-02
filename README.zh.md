@@ -138,7 +138,7 @@ Claude HUD 是一个[状态栏](https://code.claude.com/docs/en/statusline)命�
 | `display.showWeeklyCost` | boolean | false | 显示自每周额度窗口开始以来的累计花费，格式为 `Week $123.45`，与 `showDailyCost` 使用同一账本。仅订阅用户可用：需要 7 天用量窗口 |
 | `display.showOutputStyle` | boolean | false | 显示当前输出风格，格式为 `style: <名称>` |
 | `display.showDuration` | boolean | false | 显示会话已运行的时长，例如 `⏱️ 5m` |
-| `display.showSpeed` | boolean | false | 显示最近一次响应的输出 Token 速度 `out: 42.1 tok/s` |
+| `display.showSpeed` | boolean | false | 显示从 Claude Code 的 OpenTelemetry 导出实测的输出速度 `out: 85 tps`（见下文）；测到第一个请求前显示 `out: --` |
 | `display.showUsage` | boolean | true | 显示 Claude 订阅用户的使用率限制（可用时） |
 | `display.usageValue` | `percent` \| `remaining` | `percent` | 使用率显示格式（已使用 `25%`，或剩余 `75%`） |
 | `display.usageBarEnabled` | boolean | true | 将使用率显示为可视化进度条而非文本 |
@@ -234,6 +234,15 @@ Context █████░░░░░ 45% │ Usage ██░░░░░░░
 ### Prompt Cache
 
 `display.showPromptCache` 显示主会话 prompt cache 何时失效，例如 `Cache ⏱ until 14:30`，或 `expired`。它显示时刻而不是倒计时：状态栏在两个回合之间不会重绘，而那正是缓存流失的时候；时刻无论渲染多旧都仍然正确。`display.showCacheHitRate` 显示最近一次请求的输入 token 中从缓存读取的占比。
+
+`display.showSpeed` 用每个请求的输出 token 除以它的解码时间（请求耗时减去首字等待），按当前回合中主会话的请求累加计算，回合之间保持上一回合的速度。它依赖 Claude Code 以 HTTP/JSON 把 OpenTelemetry 日志导出到本机端点，HUD 会自动在该端点启动一个接收进程：
+
+```bash
+export CLAUDE_CODE_ENABLE_TELEMETRY=1
+export OTEL_LOGS_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_PROTOCOL=http/json
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
+```
 
 ### Jujutsu（jj）
 

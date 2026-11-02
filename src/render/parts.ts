@@ -176,9 +176,11 @@ export function costPart(f: Frame): string | null {
   return labeled(f, parts.join(' | '));
 }
 
+/** `out: 85 tps`, holding the last measured rate; `out: --` until one exists. */
 export function speedPart(f: Frame): string | null {
-  if (!f.config?.display?.showSpeed || f.outputSpeed === null) return null;
-  return labeled(f, `${t('format.out')}: ${f.outputSpeed.toFixed(1)} ${t('format.tokPerSec')}`);
+  if (!f.config?.display?.showSpeed) return null;
+  const value = f.outputSpeed === null ? '--' : `${Math.round(f.outputSpeed)} ${t('format.tokPerSec')}`;
+  return labeled(f, `${t('format.out')}: ${value}`);
 }
 
 export function authPart(f: Frame): string | null {

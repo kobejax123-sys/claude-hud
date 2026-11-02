@@ -1,78 +1,40 @@
-import * as fs from 'node:fs';
-import * as path from 'node:path';
-import { createHash } from 'node:crypto';
-import type { StdinData } from './types.js';
-import { getHudPluginDir } from './claude-config-dir.js';
+import type { StdinData, TranscriptData } from './types.js';
+import { getOtelTps } from './otel/client.js';
+import {
+  ensureReceiver, isTelemetryEnabled, readSettingsOtelEndpoint, resolveOtelEndpoint,
+} from './otel/lifecycle.js';
+import { isValidSessionId } from './otel/paths.js';
 
-// Below this much API time a rate is mostly noise (#481).
-const MIN_API_DELTA_MS = 500;
+// How long the receiver keeps a session's sample file.
+const SAMPLE_RETENTION_DAYS = 7;
 
-interface SpeedState {
-  apiDurationMs: number;
-  usageKey: string;
-  speed: number | null;
-}
+/**
+ * Output speed measured from Claude Code's OpenTelemetry api_request events:
+ * output tokens over the decode window (request time minus the wait for the
+ * first token), aggregated over the turn in progress, or the last completed turn
+ * until the current one has a measurable request. Main-chain requests only.
+ *
+ * Null until a request has been measured, or when telemetry is off. There is no
+ * estimate to fall back on: one derived from API time includes the first-token
+ * wait and reads well below the real rate on short replies.
+ */
+export function getOutputSpeed(stdin: StdinData, homeDir: string, transcript: TranscriptData): number | null {
+  if (!isTelemetryEnabled(process.env)) return null;
+  const sessionId = stdin.session_id;
+  if (!isValidSessionId(sessionId)) return null;
 
-const isCount = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isFinite(value) && value >= 0;
+  // The statusLine's environment is stripped of OTEL_*, so the settings files are
+  // what tells a loopback endpoint from a remote one.
+  const endpoint = resolveOtelEndpoint(process.env, readSettingsOtelEndpoint(homeDir, stdin.cwd));
+  // Fire and forget: the render must not wait on the receiver's port probe.
+  void ensureReceiver({ homeDir, endpoint, retentionDays: SAMPLE_RETENTION_DAYS }).catch(() => {
+    // Lazy start never fails the render.
+  });
 
-function statePath(homeDir: string, transcriptPath: string): string {
-  const key = createHash('sha256').update(path.resolve(transcriptPath)).digest('hex');
-  return path.join(getHudPluginDir(homeDir), 'speed-cache', `${key}.json`);
-}
-
-function readState(file: string): SpeedState | null {
-  try {
-    const state = JSON.parse(fs.readFileSync(file, 'utf8')) as Partial<SpeedState>;
-    const speed = state.speed ?? null;
-    return isCount(state.apiDurationMs) && typeof state.usageKey === 'string' && (speed === null || isCount(speed))
-      ? { apiDurationMs: state.apiDurationMs, usageKey: state.usageKey, speed }
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeState(file: string, state: SpeedState): void {
-  try {
-    fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
-    const tmp = `${file}.${process.pid}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(state), { mode: 0o600 });
-    fs.renameSync(tmp, file);
-  } catch {
-    // Speed is cosmetic; a read-only home just means no reading.
-  }
-}
-
-// current_usage.output_tokens only changes when a response finishes, and
-// cost.total_api_duration_ms advances by that response's request time in the same
-// update, so speed is the finished response's output over the API time it added.
-// The reading holds until the next response.
-export function getOutputSpeed(stdin: StdinData, homeDir: string): number | null {
-  const transcriptPath = stdin.transcript_path?.trim();
-  const usage = stdin.context_window?.current_usage;
-  const output = usage?.output_tokens;
-  const apiDurationMs = stdin.cost?.total_api_duration_ms;
-  if (!transcriptPath || !usage || !isCount(output) || !isCount(apiDurationMs)) {
-    return null;
-  }
-
-  const file = statePath(homeDir, transcriptPath);
-  const usageKey = [usage.input_tokens, output, usage.cache_creation_input_tokens, usage.cache_read_input_tokens].join(':');
-  const previous = readState(file);
-  if (!previous || apiDurationMs < previous.apiDurationMs) {
-    writeState(file, { apiDurationMs, usageKey, speed: null });
-    return null;
-  }
-  if (apiDurationMs === previous.apiDurationMs) {
-    return previous.speed;
-  }
-
-  // API time from requests that leave the main usage untouched (subagents) folds
-  // into the baseline instead of being charged to the next response.
-  const deltaMs = apiDurationMs - previous.apiDurationMs;
-  const isNewResponse = usageKey !== previous.usageKey && output > 0;
-  const speed = isNewResponse && deltaMs >= MIN_API_DELTA_MS ? output / (deltaMs / 1000) : previous.speed;
-  writeState(file, { apiDurationMs, usageKey, speed });
-  return speed;
+  return getOtelTps(
+    homeDir,
+    sessionId,
+    transcript.lastTurnEndAt?.getTime() ?? null,
+    transcript.previousTurnEndAt?.getTime() ?? null,
+  );
 }

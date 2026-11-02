@@ -138,7 +138,7 @@ Labels are available in English (the default), Simplified Chinese (`zh-Hans`, al
 | `display.showWeeklyCost` | boolean | false | Show spend since the weekly quota window opened as `Week $123.45`, from the same ledger as `showDailyCost`. Subscribers only: needs the 7-day usage window |
 | `display.showOutputStyle` | boolean | false | Show the current output style as `style: <name>` |
 | `display.showDuration` | boolean | false | Show how long the session has been running, e.g. `⏱️ 5m` |
-| `display.showSpeed` | boolean | false | Show the latest response's output speed `out: 42.1 tok/s` |
+| `display.showSpeed` | boolean | false | Show the measured output speed `out: 85 tps` from Claude Code's OpenTelemetry export (see below); `out: --` until a request is measured |
 | `display.showUsage` | boolean | true | Show Claude subscriber usage limits when available |
 | `display.usageValue` | `percent` \| `remaining` | `percent` | Usage display format (`25%` used, or `75%` remaining) |
 | `display.usageBarEnabled` | boolean | true | Display usage as visual bar instead of text |
@@ -234,6 +234,15 @@ With `display.usagePace`, a window you're using faster than it refills turns amb
 ### Prompt Cache
 
 `display.showPromptCache` shows when the main conversation's prompt cache goes cold, such as `Cache ⏱ until 14:30`, or `expired`. It shows a clock time rather than a countdown because the status line doesn't repaint between turns, which is exactly when the cache drains; a clock time stays correct however old the render is. `display.showCacheHitRate` shows the share of the latest request's input tokens read from the cache.
+
+`display.showSpeed` divides each request's output tokens by its decode time (request time minus the wait for the first token), summed over the main conversation's requests in the current turn, and holds the last turn's rate between turns. It needs Claude Code's OpenTelemetry log export over HTTP/JSON to a loopback endpoint; the HUD starts a small receiver there on its own:
+
+```bash
+export CLAUDE_CODE_ENABLE_TELEMETRY=1
+export OTEL_LOGS_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_PROTOCOL=http/json
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
+```
 
 ### Jujutsu (jj)
 

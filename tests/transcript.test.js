@@ -654,3 +654,24 @@ test('saved state that no longer parses is dropped and the transcript reread', a
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test('turn boundaries keep the last two turn_duration records, as Dates after a resumed read', async () => {
+  const turn = (timestamp) => ({ type: 'system', subtype: 'turn_duration', timestamp });
+  const parsed = await parse([turn('2026-10-01T10:00:00.000Z'), turn('2026-10-01T10:05:00.000Z'), turn('2026-10-01T10:01:00.000Z'), turn('bad')]);
+  assert.deepEqual(parsed.previousTurnEndAt, new Date('2026-10-01T10:00:00.000Z'));
+  assert.deepEqual(parsed.lastTurnEndAt, new Date('2026-10-01T10:05:00.000Z'), 'an out-of-order record does not move it back');
+
+  const dir = await mkdtemp(path.join(tmpdir(), 'hud-turns-'));
+  try {
+    const file = path.join(dir, 'transcript.jsonl');
+    await writeFile(file, `${JSON.stringify(turn('2026-10-01T10:00:00.000Z'))}\n`);
+    await parseTranscript(file, dir);
+    await appendFile(file, `${JSON.stringify(turn('2026-10-01T10:05:00.000Z'))}\n`);
+    const resumed = await parseTranscript(file, dir);
+    assert.ok(resumed.previousTurnEndAt instanceof Date && resumed.lastTurnEndAt instanceof Date);
+    assert.equal(resumed.previousTurnEndAt.toISOString(), '2026-10-01T10:00:00.000Z');
+    assert.equal(resumed.lastTurnEndAt.toISOString(), '2026-10-01T10:05:00.000Z');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

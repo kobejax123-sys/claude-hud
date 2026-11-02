@@ -173,6 +173,13 @@ class Parser {
       if (entry.attachment?.type === 'ultra_effort_enter') this.data.ultracodeActive = true;
       if (entry.attachment?.type === 'ultra_effort_exit') this.data.ultracodeActive = false;
     }
+    // Claude Code writes a turn_duration record when a turn ends; speed sampling uses the
+    // last two to find the turn in progress and the last completed one.
+    if (entry.type === 'system' && entry.subtype === 'turn_duration' && at
+      && (!this.data.lastTurnEndAt || at > this.data.lastTurnEndAt)) {
+      this.data.previousTurnEndAt = this.data.lastTurnEndAt;
+      this.data.lastTurnEndAt = at;
+    }
     if (entry.type === 'system' && entry.subtype === 'compact_boundary' && at) {
       this.data.compactionCount = (this.data.compactionCount ?? 0) + 1;
       const post = entry.compactMetadata?.postTokens;
@@ -433,7 +440,7 @@ class Parser {
 }
 
 // The Date fields of ToolEntry, AgentEntry, and TranscriptData.
-const DATE_KEYS = new Set(['startTime', 'endTime', 'sessionStart', 'lastAssistantResponseAt']);
+const DATE_KEYS = new Set(['startTime', 'endTime', 'sessionStart', 'lastAssistantResponseAt', 'lastTurnEndAt', 'previousTurnEndAt']);
 type SavedState = ReturnType<Parser['save']>;
 const reviveDates = (key: string, value: unknown): unknown =>
   DATE_KEYS.has(key) && typeof value === 'string' ? new Date(value) : value;

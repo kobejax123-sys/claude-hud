@@ -164,6 +164,12 @@ export interface TranscriptData {
   // last-response element.
   lastAssistantResponseAt?: Date;
   sessionTokens?: SessionTokenUsage;
+  // When the last completed turn ended (its `system`/`turn_duration` record).
+  // Speed sampling scopes itself to requests after this: the turn in progress.
+  lastTurnEndAt?: Date;
+  // The turn_duration record before that one: where the last completed turn
+  // began, so its rate can hold until the turn in progress has one.
+  previousTurnEndAt?: Date;
   // Number of compact_boundary entries (manual /compact or auto compaction)
   // with a valid timestamp seen in the transcript.
   compactionCount?: number;
