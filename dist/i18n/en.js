@@ -29,7 +29,7 @@ export const en = {
     "format.cache": "cache",
     "format.out": "out",
     "format.tok": "tok",
-    "format.tokPerSec": "tok/s",
+    "format.tokPerSec": "tps",
     "format.justNow": "just now",
     "format.relativeTime": "{value} ago",
     "format.elapsed": "{value}% elapsed",

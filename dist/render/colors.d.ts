@@ -21,6 +21,11 @@ interface ContextThresholds {
 }
 export declare function getContextColor(percent: number, colors?: Partial<HudColorOverrides>, thresholds?: ContextThresholds): string;
 /**
+ * A formatted context value on its health color. With `colors.contextTokens` set,
+ * the `(116k/1.0M)` parenthetical of `contextValue: "both"` takes that color instead.
+ */
+export declare function colorizeContextValue(value: string, healthColor: string, colors?: Partial<HudColorOverrides>): string;
+/**
  * Usage-window colour: the more severe of the used-percentage band and the
  * consumption pace (when pace is given).
  */

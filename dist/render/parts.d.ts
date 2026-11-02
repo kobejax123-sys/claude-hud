@@ -21,6 +21,7 @@ export declare function durationPart(f: Frame): string | null;
 export declare function extraPart(f: Frame): string | null;
 /** `Cost $1.23 | Today $4.56 | Week $12.00`, one dim span. */
 export declare function costPart(f: Frame): string | null;
+/** `out: 85 tps`, holding the last measured rate; `out: --` until one exists. */
 export declare function speedPart(f: Frame): string | null;
 export declare function authPart(f: Frame): string | null;
 export declare function customLinePart(f: Frame, position: 'first' | 'last'): string | null;

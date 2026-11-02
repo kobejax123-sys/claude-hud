@@ -164,8 +164,12 @@ export function stdinText(value, maxLength = 80) {
     return displayLabel(value, maxLength) || undefined;
 }
 // Drops the "(1M context)" style suffix; the context bar already shows the window.
+// Proxied models use a trailing "[1m]" instead; only a size marker goes, so "model [beta]" survives.
 export function stripContextSuffix(name) {
-    return name.replace(/\s*\([^)]*\bcontext\b[^)]*\)/i, '').trim();
+    return name
+        .replace(/\s*\([^)]*\bcontext\b[^)]*\)/i, '')
+        .replace(/\[\s*\d+(?:\.\d+)?\s*[mk]\s*\]$/i, '')
+        .trim();
 }
 export function formatModelName(name, format, override) {
     if (override) {

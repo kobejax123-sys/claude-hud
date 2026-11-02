@@ -58,7 +58,7 @@ const FIRST_LINE_SEGMENTS = [
 ];
 // sessionTokens and cost are left out so they keep their built-in place (the tokens summary's
 // last line, cost on the first line) until they're placed.
-export const DEFAULT_ELEMENT_ORDER = ELEMENTS.filter(element => element !== 'sessionTokens' && element !== 'cost');
+export const DEFAULT_ELEMENT_ORDER = ELEMENTS.filter(element => element !== 'sessionTokens' && element !== 'cost' && element !== 'cacheHitRate');
 export const DEFAULT_MERGE_GROUPS = [['context', 'usage']];
 // Empty keeps each renderer's native order until the user moves a segment.
 export const DEFAULT_PROJECT_LINE_ORDER = [];
@@ -159,6 +159,7 @@ export const DEFAULT_CONFIG = {
     },
     colors: {
         context: 'green',
+        contextTokens: null,
         usage: 'brightBlue',
         warning: 'yellow',
         usageWarning: 'brightMagenta',

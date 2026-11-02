@@ -27,7 +27,7 @@ function needsTranscript(config, stdin) {
     const d = config.display;
     return d.showTools || d.showSkills || d.showMcp || d.showAgents || d.showTodos
         || d.showConfigCounts || d.showSessionTokens || d.showCompactions || d.showAdvisor
-        || d.showSessionStartDate || d.showLastResponseAt || d.showEffortLevel
+        || d.showSessionStartDate || d.showLastResponseAt || d.showEffortLevel || d.showSpeed
         || d.modelSource !== "stdin"
         || isContextUnreported(stdin);
 }
@@ -87,7 +87,7 @@ export async function main() {
             costTotals: display.showDailyCost || display.showWeeklyCost
                 ? getCostTotals(stdin, { allowRoutedCost: display.showRoutedCost, sevenDayResetAt: usageData?.sevenDayResetAt ?? null })
                 : null,
-            outputSpeed: display.showSpeed ? getOutputSpeed(stdin, os.homedir()) : null,
+            outputSpeed: display.showSpeed ? getOutputSpeed(stdin, os.homedir(), transcript) : null,
             gitStatus,
             usageData,
             memoryUsage,

@@ -134,9 +134,10 @@ export function expandedLines(f) {
         if (tokens)
             lines.push(tokens);
     }
-    const compactions = compactionsPart(f);
-    if (compactions)
-        lines.push(compactions);
+    // Until cacheHitRate is placed in elementOrder, it shares the compactions line.
+    const stats = [order.includes('cacheHitRate') ? null : cacheHitRateLine(f), compactionsPart(f)].filter(Boolean);
+    if (stats.length > 0)
+        lines.push(stats.join(' │ '));
     const firstActivity = rows.findIndex(({ activity }) => activity);
     if (f.config?.showSeparators && firstActivity > 0) {
         const widest = Math.max(...rows.slice(0, firstActivity).map(({ line }) => visibleWidth(line)), 20);

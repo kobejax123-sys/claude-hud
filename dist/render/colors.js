@@ -100,6 +100,17 @@ export function getContextColor(percent, colors, thresholds) {
     return resolveAnsi(colors?.context, GREEN);
 }
 /**
+ * A formatted context value on its health color. With `colors.contextTokens` set,
+ * the `(116k/1.0M)` parenthetical of `contextValue: "both"` takes that color instead.
+ */
+export function colorizeContextValue(value, healthColor, colors) {
+    const splitAt = value.indexOf(' (');
+    const tokensColor = colors?.contextTokens;
+    if (splitAt < 0 || tokensColor === undefined || tokensColor === null)
+        return colorize(value, healthColor);
+    return `${colorize(value.slice(0, splitAt), healthColor)} ${colorize(value.slice(splitAt + 1), resolveAnsi(tokensColor, healthColor))}`;
+}
+/**
  * Usage-window colour: the more severe of the used-percentage band and the
  * consumption pace (when pace is given).
  */

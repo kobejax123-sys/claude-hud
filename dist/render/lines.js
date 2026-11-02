@@ -51,11 +51,22 @@ export function promptCacheLine(f) {
     }
     return `${label(t('label.promptCache'), colors)} ${value}`;
 }
+/**
+ * Cache hit rate of the most recent request: cache reads over its whole input
+ * (uncached, cache reads, cache writes). Endpoints that never report cache writes
+ * would pin a reads-over-cache-traffic rate at 100%. Shows `--` until a request
+ * with cache activity, so the slot doesn't pop in mid-session.
+ */
 export function cacheHitRateLine(f) {
-    const ratio = f.stdin.prompt_cache?.hit_ratio;
-    if (f.config?.display?.showCacheHitRate !== true || typeof ratio !== 'number' || !Number.isFinite(ratio))
+    if (f.config?.display?.showCacheHitRate !== true)
         return null;
-    return `${label(t('label.cacheHitRate'), f.config?.colors)} ${Math.min(100, Math.max(0, ratio * 100)).toFixed(1)}%`;
+    const usage = f.stdin.context_window?.current_usage;
+    const count = (value) => (typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0);
+    const input = count(usage?.input_tokens);
+    const write = count(usage?.cache_creation_input_tokens);
+    const read = count(usage?.cache_read_input_tokens);
+    const rate = read + write > 0 ? `${((read / (input + write + read)) * 100).toFixed(1)}%` : '--';
+    return `${label(t('label.cacheHitRate'), f.config?.colors)} ${rate}`;
 }
 const pad = (n) => String(n).padStart(2, '0');
 /** `Started: 2026-10-01 11:00 │ Last reply: 1m ago`. */

@@ -159,10 +159,12 @@ export function costPart(f) {
     ].filter(Boolean);
     return labeled(f, parts.join(' | '));
 }
+/** `out: 85 tps`, holding the last measured rate; `out: --` until one exists. */
 export function speedPart(f) {
-    if (!f.config?.display?.showSpeed || f.outputSpeed === null)
+    if (!f.config?.display?.showSpeed)
         return null;
-    return labeled(f, `${t('format.out')}: ${f.outputSpeed.toFixed(1)} ${t('format.tokPerSec')}`);
+    const value = f.outputSpeed === null ? '--' : `${Math.round(f.outputSpeed)} ${t('format.tokPerSec')}`;
+    return labeled(f, `${t('format.out')}: ${value}`);
 }
 export function authPart(f) {
     return labeled(f, formatAuthSegment(f.authInfo, f.config?.display));

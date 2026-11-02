@@ -151,6 +151,8 @@ export interface TranscriptData {
     sessionStart?: Date;
     lastAssistantResponseAt?: Date;
     sessionTokens?: SessionTokenUsage;
+    lastTurnEndAt?: Date;
+    previousTurnEndAt?: Date;
     compactionCount?: number;
     contextTokens?: number;
     advisorModel?: string;
