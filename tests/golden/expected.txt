@@ -350,7 +350,7 @@
 ### toggle/showCacheHitRate
 \e[0m\e[36m[Opus 5.5]\e[0m │ \e]8;;file://<BASE>/home/dev/my-project\e\\e[33mmy-project\e[0m\e]8;;\e\
 \e[0m\e[2mContext\e[0m \e[32m█████\e[2m░░░░░\e[0m \e[32m45%\e[0m │ \e[2mUsage\e[0m \e[94m███\e[2m░░░░░░░\e[0m \e[94m25%\e[0m (resets in 1h 30m)
-\e[0m\e[2mCache hit\e[0m 91.0%
+\e[0m\e[2mCache hit\e[0m 88.9%
 
 ### toggle/showSessionTokens
 \e[0m\e[36m[Opus 5.5]\e[0m │ \e]8;;file://<BASE>/home/dev/my-project\e\\e[33mmy-project\e[0m\e]8;;\e\
@@ -402,7 +402,6 @@
 \e[0m\e[36m[Opus 5.5 ◑ high]\e[0m │ \e]8;;file://<BASE>/home/dev/my-project\e\\e[33mmy-project\e[0m\e]8;;\e\ \e[35mgit:(\e[0m\e]8;;https://github.com/jarrodwatts/claude-hud/tree/main\e\\e[36mmain*\e[0m\e]8;;\e\ [\e[32m+2\e[0m]\e[35m)\e[0m \e[35m⎇ feat-auth\e[0m │ \e[2mAdvisor:\e[0m Opus 5.5 │ \e[2mauth-fix\e[0m │ \e[2mCC v2.1.286\e[0m │ \e[2m⏱️  1h 0m\e[0m │ \e[2mCost $1.23 | Today $0.0000 | Week $0.0000\e[0m
 \e[0m\e[2mContext\e[0m \e[32m█████\e[2m░░░░░\e[0m \e[32m45%\e[0m │ \e[2mUsage\e[0m \e[94m███\e[2m░░░░░░░\e[0m \e[94m25%\e[0m (resets in 1h 30m)
 \e[0m\e[2mCache\e[0m \e[32m⏱ until 12:04 PM\e[0m
-\e[0m\e[2mCache hit\e[0m 91.0%
 \e[0m\e[2mstyle: Explanatory\e[0m | \e[31m⚠ github\e[0m
 \e[0m\e[33m◐\e[0m \e[36mEdit\e[0m\e[2m: .../auth.test.ts\e[0m | \e[32m✓\e[0m Read \e[2m×1\e[0m | \e[32m✓\e[0m Grep \e[2m×1\e[0m | \e[32m✓\e[0m Bash \e[2m×1\e[0m | \e[32m✓\e[0m mcp__github__search_issues \e[2m×1\e[0m | \e[2m+1 more\e[0m
 \e[0m\e[32m✓\e[0m Skills \e[2m(1)\e[0m: \e[36mfrontend-design\e[0m
@@ -412,10 +411,10 @@
 \e[0m\e[2mStarted:\e[0m 2026-10-01 11:00 \e[2m│\e[0m \e[2mLast reply:\e[0m 1m ago
 \e[0m\e[33m~\e[0m\e]8;;file://<BASE>/home/dev/my-project/tracked.txt\e\\e[33mtracked.txt\e[0m\e]8;;\e\\e[2m(\e[32m+2\e[0m)\e[0m  \e[2m?1\e[0m
 \e[0m\e[2mTokens 262k (in: 6k, out: 2k, cache: 254k)\e[0m
-\e[0m\e[2mCompactions: 1\e[0m
+\e[0m\e[2mCache hit\e[0m 88.9% │ \e[2mCompactions: 1\e[0m
 
 ### kitchen-sink/compact
-\e[0m\e[36m[Opus 5.5 ◑ high]\e[0m \e[32m█████\e[2m░░░░░\e[0m \e[32m45%\e[0m | \e[33mmy-project\e[0m \e[35mgit:(\e[0m\e]8;;https://github.com/jarrodwatts/claude-hud/tree/main\e\\e[36mmain*\e[0m\e]8;;\e\ \e[36m!1 ?1\e[0m\e[35m)\e[0m \e[35m⎇ feat-auth\e[0m | \e[2mauth-fix\e[0m | \e[2mCC v2.1.286\e[0m | \e[2mUsage\e[0m \e[94m███\e[2m░░░░░░░\e[0m \e[94m25%\e[0m (1h 30m / 5h) | \e[2mtok: 262k (in: 6k, out: 2k, cache: 254k)\e[0m | \e[2mCompactions: 1\e[0m | \e[2mAdvisor:\e[0m Opus 5.5 | \e[2m⏱️  1h 0m\e[0m | \e[2mStarted:\e[0m 2026-10-01 11:00 \e[2m│\e[0m \e[2mLast reply:\e[0m 1m ago | \e[2mCache\e[0m \e[32m⏱ until 12:04 PM\e[0m | \e[2mCache hit\e[0m 91.0% | \e[2mCost $1.23 | Today $0.0000 | Week $0.0000\e[0m
+\e[0m\e[36m[Opus 5.5 ◑ high]\e[0m \e[32m█████\e[2m░░░░░\e[0m \e[32m45%\e[0m | \e[33mmy-project\e[0m \e[35mgit:(\e[0m\e]8;;https://github.com/jarrodwatts/claude-hud/tree/main\e\\e[36mmain*\e[0m\e]8;;\e\ \e[36m!1 ?1\e[0m\e[35m)\e[0m \e[35m⎇ feat-auth\e[0m | \e[2mauth-fix\e[0m | \e[2mCC v2.1.286\e[0m | \e[2mUsage\e[0m \e[94m███\e[2m░░░░░░░\e[0m \e[94m25%\e[0m (1h 30m / 5h) | \e[2mtok: 262k (in: 6k, out: 2k, cache: 254k)\e[0m | \e[2mCompactions: 1\e[0m | \e[2mAdvisor:\e[0m Opus 5.5 | \e[2m⏱️  1h 0m\e[0m | \e[2mStarted:\e[0m 2026-10-01 11:00 \e[2m│\e[0m \e[2mLast reply:\e[0m 1m ago | \e[2mCache\e[0m \e[32m⏱ until 12:04 PM\e[0m | \e[2mCache hit\e[0m 88.9% | \e[2mCost $1.23 | Today $0.0000 | Week $0.0000\e[0m
 \e[0m\e[33m◐\e[0m \e[36mEdit\e[0m\e[2m: .../auth.test.ts\e[0m | \e[32m✓\e[0m Read \e[2m×1\e[0m | \e[32m✓\e[0m Grep \e[2m×1\e[0m | \e[32m✓\e[0m Bash \e[2m×1\e[0m | \e[32m✓\e[0m mcp__github__search_issues \e[2m×1\e[0m | \e[2m+1 more\e[0m
 \e[0m\e[32m✓\e[0m Skills \e[2m(1)\e[0m: \e[36mfrontend-design\e[0m
 \e[0m\e[32m✓\e[0m MCPs \e[2m(1)\e[0m: \e[36mgithub\e[0m
@@ -428,7 +427,6 @@
 \e[0m\e[2mCost $1.23 | Today $0.0000 | Week $0.0000\e[0m
 \e[0m\e[2mContext\e[0m \e[32m███\e[2m░░░\e[0m \e[32m45%\e[0m │ \e[2mUsage\e[0m \e[94m██\e[2m░░░░\e[0m \e[94m25%\e[0m (resets in 1h 30m)
 \e[0m\e[2mCache\e[0m \e[32m⏱ until 12:04 PM\e[0m
-\e[0m\e[2mCache hit\e[0m 91.0%
 \e[0m\e[2mstyle: Explanatory\e[0m | \e[31m⚠ github\e[0m
 \e[0m\e[33m◐\e[0m \e[36mEdit\e[0m\e[2m: .../auth.test.ts\e[0m | \e[32m✓\e[0m Read \e[2m×1\e[0m | \e[32m✓\e[0m Grep \e[2m×1\e[0m | \e[32m✓\e[0m Bash \e[2m×1\e[0m
 \e[0m\e[32m✓\e[0m mcp__github__search_issues \e[2m×1\e[0m | \e[2m+1 more\e[0m
@@ -439,7 +437,7 @@
 \e[0m\e[2mStarted:\e[0m 2026-10-01 11:00 \e[2m│\e[0m \e[2mLast reply:\e[0m 1m ago
 \e[0m\e[33m~\e[0m\e]8;;file://<BASE>/home/dev/my-project/tracked.txt\e\\e[33mtracked.txt\e[0m\e]8;;\e\\e[2m(\e[32m+2\e[0m)\e[0m  \e[2m?1\e[0m
 \e[0m\e[2mTokens 262k (in: 6k, out: 2k, cache: 254k)\e[0m
-\e[0m\e[2mCompactions: 1\e[0m
+\e[0m\e[2mCache hit\e[0m 88.9% │ \e[2mCompactions: 1\e[0m
 
 ### kitchen-sink/compact@60
 \e[0m\e[36m[Opus 5.5 ◑ high]\e[0m \e[32m███\e[2m░░░\e[0m \e[32m45%\e[0m
@@ -448,7 +446,7 @@
 \e[0m\e[2mtok: 262k (in: 6k, out: 2k, cache: 254k)\e[0m | \e[2mCompactions: 1\e[0m
 \e[0m\e[2mAdvisor:\e[0m Opus 5.5 | \e[2m⏱️  1h 0m\e[0m
 \e[0m\e[2mStarted:\e[0m 2026-10-01 11:00 \e[2m│\e[0m \e[2mLast reply:\e[0m 1m ago
-\e[0m\e[2mCache\e[0m \e[32m⏱ until 12:04 PM\e[0m | \e[2mCache hit\e[0m 91.0% | \e[2mCost $1.23
+\e[0m\e[2mCache\e[0m \e[32m⏱ until 12:04 PM\e[0m | \e[2mCache hit\e[0m 88.9% | \e[2mCost $1.23
 \e[0mToday $0.0000 | Week $0.0000\e[0m
 \e[0m\e[33m◐\e[0m \e[36mEdit\e[0m\e[2m: .../auth.test.ts\e[0m | \e[32m✓\e[0m Read \e[2m×1\e[0m | \e[32m✓\e[0m Grep \e[2m×1\e[0m | \e[32m✓\e[0m Bash \e[2m×1\e[0m
 \e[0m\e[32m✓\e[0m mcp__github__search_issues \e[2m×1\e[0m | \e[2m+1 more\e[0m
@@ -462,7 +460,6 @@
 \e[0m\e[2mCost $1.23 | Today $0.0000 | Week $0.0000\e[0m
 \e[0m\e[2mContext\e[0m \e[32m█████\e[2m░░░░░\e[0m \e[32m45%\e[0m │ \e[2mUsage\e[0m \e[94m███\e[2m░░░░░░░\e[0m \e[94m25%\e[0m (resets in 1h 30m)
 \e[0m\e[2mCache\e[0m \e[32m⏱ until 12:04 PM\e[0m
-\e[0m\e[2mCache hit\e[0m 91.0%
 \e[0m\e[2mstyle: Explanatory\e[0m | \e[31m⚠ github\e[0m
 \e[0m\e[33m◐\e[0m \e[36mEdit\e[0m\e[2m: .../auth.test.ts\e[0m | \e[32m✓\e[0m Read \e[2m×1\e[0m | \e[32m✓\e[0m Grep \e[2m×1\e[0m | \e[32m✓\e[0m Bash \e[2m×1\e[0m | \e[32m✓\e[0m mcp__github__search_issues \e[2m×1\e[0m | \e[2m+1 more\e[0m
 \e[0m\e[32m✓\e[0m Skills \e[2m(1)\e[0m: \e[36mfrontend-design\e[0m
@@ -472,12 +469,12 @@
 \e[0m\e[2mStarted:\e[0m 2026-10-01 11:00 \e[2m│\e[0m \e[2mLast reply:\e[0m 1m ago
 \e[0m\e[33m~\e[0m\e]8;;file://<BASE>/home/dev/my-project/tracked.txt\e\\e[33mtracked.txt\e[0m\e]8;;\e\\e[2m(\e[32m+2\e[0m)\e[0m  \e[2m?1\e[0m
 \e[0m\e[2mTokens 262k (in: 6k, out: 2k, cache: 254k)\e[0m
-\e[0m\e[2mCompactions: 1\e[0m
+\e[0m\e[2mCache hit\e[0m 88.9% │ \e[2mCompactions: 1\e[0m
 
 ### kitchen-sink/compact@120
 \e[0m\e[36m[Opus 5.5 ◑ high]\e[0m \e[32m█████\e[2m░░░░░\e[0m \e[32m45%\e[0m | \e[33mmy-project\e[0m \e[35mgit:(\e[0m\e]8;;https://github.com/jarrodwatts/claude-hud/tree/main\e\\e[36mmain*\e[0m\e]8;;\e\ \e[36m!1 ?1\e[0m\e[35m)\e[0m \e[35m⎇ feat-auth\e[0m | \e[2mauth-fix\e[0m | \e[2mCC v2.1.286\e[0m
 \e[0m\e[2mUsage\e[0m \e[94m███\e[2m░░░░░░░\e[0m \e[94m25%\e[0m (1h 30m / 5h) | \e[2mtok: 262k (in: 6k, out: 2k, cache: 254k)\e[0m | \e[2mCompactions: 1\e[0m | \e[2mAdvisor:\e[0m Opus 5.5
-\e[0m\e[2m⏱️  1h 0m\e[0m | \e[2mStarted:\e[0m 2026-10-01 11:00 \e[2m│\e[0m \e[2mLast reply:\e[0m 1m ago | \e[2mCache\e[0m \e[32m⏱ until 12:04 PM\e[0m | \e[2mCache hit\e[0m 91.0% | \e[2mCost $1.23
+\e[0m\e[2m⏱️  1h 0m\e[0m | \e[2mStarted:\e[0m 2026-10-01 11:00 \e[2m│\e[0m \e[2mLast reply:\e[0m 1m ago | \e[2mCache\e[0m \e[32m⏱ until 12:04 PM\e[0m | \e[2mCache hit\e[0m 88.9% | \e[2mCost $1.23
 \e[0mToday $0.0000 | Week $0.0000\e[0m
 \e[0m\e[33m◐\e[0m \e[36mEdit\e[0m\e[2m: .../auth.test.ts\e[0m | \e[32m✓\e[0m Read \e[2m×1\e[0m | \e[32m✓\e[0m Grep \e[2m×1\e[0m | \e[32m✓\e[0m Bash \e[2m×1\e[0m | \e[32m✓\e[0m mcp__github__search_issues \e[2m×1\e[0m | \e[2m+1 more\e[0m
 \e[0m\e[32m✓\e[0m Skills \e[2m(1)\e[0m: \e[36mfrontend-design\e[0m
@@ -486,7 +483,7 @@
 \e[0m\e[33m▸\e[0m Fix authentication bug \e[2m(1/3)\e[0m
 
 ### kitchen-sink/compact+separators
-\e[0m\e[36m[Opus 5.5 ◑ high]\e[0m \e[32m█████\e[2m░░░░░\e[0m \e[32m45%\e[0m | \e[33mmy-project\e[0m \e[35mgit:(\e[0m\e]8;;https://github.com/jarrodwatts/claude-hud/tree/main\e\\e[36mmain*\e[0m\e]8;;\e\ \e[36m!1 ?1\e[0m\e[35m)\e[0m \e[35m⎇ feat-auth\e[0m | \e[2mauth-fix\e[0m | \e[2mCC v2.1.286\e[0m | \e[2mUsage\e[0m \e[94m███\e[2m░░░░░░░\e[0m \e[94m25%\e[0m (1h 30m / 5h) | \e[2mtok: 262k (in: 6k, out: 2k, cache: 254k)\e[0m | \e[2mCompactions: 1\e[0m | \e[2mAdvisor:\e[0m Opus 5.5 | \e[2m⏱️  1h 0m\e[0m | \e[2mStarted:\e[0m 2026-10-01 11:00 \e[2m│\e[0m \e[2mLast reply:\e[0m 1m ago | \e[2mCache\e[0m \e[32m⏱ until 12:04 PM\e[0m | \e[2mCache hit\e[0m 91.0% | \e[2mCost $1.23 | Today $0.0000 | Week $0.0000\e[0m
+\e[0m\e[36m[Opus 5.5 ◑ high]\e[0m \e[32m█████\e[2m░░░░░\e[0m \e[32m45%\e[0m | \e[33mmy-project\e[0m \e[35mgit:(\e[0m\e]8;;https://github.com/jarrodwatts/claude-hud/tree/main\e\\e[36mmain*\e[0m\e]8;;\e\ \e[36m!1 ?1\e[0m\e[35m)\e[0m \e[35m⎇ feat-auth\e[0m | \e[2mauth-fix\e[0m | \e[2mCC v2.1.286\e[0m | \e[2mUsage\e[0m \e[94m███\e[2m░░░░░░░\e[0m \e[94m25%\e[0m (1h 30m / 5h) | \e[2mtok: 262k (in: 6k, out: 2k, cache: 254k)\e[0m | \e[2mCompactions: 1\e[0m | \e[2mAdvisor:\e[0m Opus 5.5 | \e[2m⏱️  1h 0m\e[0m | \e[2mStarted:\e[0m 2026-10-01 11:00 \e[2m│\e[0m \e[2mLast reply:\e[0m 1m ago | \e[2mCache\e[0m \e[32m⏱ until 12:04 PM\e[0m | \e[2mCache hit\e[0m 88.9% | \e[2mCost $1.23 | Today $0.0000 | Week $0.0000\e[0m
 \e[0m\e[2m──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\e[0m
 \e[0m\e[33m◐\e[0m \e[36mEdit\e[0m\e[2m: .../auth.test.ts\e[0m | \e[32m✓\e[0m Read \e[2m×1\e[0m | \e[32m✓\e[0m Grep \e[2m×1\e[0m | \e[32m✓\e[0m Bash \e[2m×1\e[0m | \e[32m✓\e[0m mcp__github__search_issues \e[2m×1\e[0m | \e[2m+1 more\e[0m
 \e[0m\e[32m✓\e[0m Skills \e[2m(1)\e[0m: \e[36mfrontend-design\e[0m
@@ -498,7 +495,6 @@
 \e[0m\e[36m[Opus 5.5 ◑ high]\e[0m │ \e]8;;file://<BASE>/home/dev/my-project\e\\e[33mmy-project\e[0m\e]8;;\e\ \e[35mgit:(\e[0m\e]8;;https://github.com/jarrodwatts/claude-hud/tree/main\e\\e[36mmain*\e[0m\e]8;;\e\ [\e[32m+2\e[0m]\e[35m)\e[0m \e[35m⎇ feat-auth\e[0m │ \e[2m顾问:\e[0m Opus 5.5 │ \e[2mauth-fix\e[0m │ \e[2mCC v2.1.286\e[0m │ \e[2m⏱️  1h 0m\e[0m │ \e[2m费用 $1.23 | 今日 $0.0000 | 本周 $0.0000\e[0m
 \e[0m\e[2m上下文\e[0m \e[32m█████\e[2m░░░░░\e[0m \e[32m45%\e[0m │ \e[2m用量\e[0m \e[94m███\e[2m░░░░░░░\e[0m \e[94m25%\e[0m (重置剩余 1h 30m)
 \e[0m\e[2m缓存\e[0m \e[32m⏱ 至 12:04 PM\e[0m
-\e[0m\e[2m缓存命中\e[0m 91.0%
 \e[0m\e[2mstyle: Explanatory\e[0m | \e[31m⚠ github\e[0m
 \e[0m\e[33m◐\e[0m \e[36mEdit\e[0m\e[2m: .../auth.test.ts\e[0m | \e[32m✓\e[0m Read \e[2m×1\e[0m | \e[32m✓\e[0m Grep \e[2m×1\e[0m | \e[32m✓\e[0m Bash \e[2m×1\e[0m | \e[32m✓\e[0m mcp__github__search_issues \e[2m×1\e[0m | \e[2m+1 more\e[0m
 \e[0m\e[32m✓\e[0m Skills \e[2m(1)\e[0m: \e[36mfrontend-design\e[0m
@@ -508,7 +504,7 @@
 \e[0m\e[2m开始:\e[0m 2026-10-01 11:00 \e[2m│\e[0m \e[2m上次回复:\e[0m 1m 前
 \e[0m\e[33m~\e[0m\e]8;;file://<BASE>/home/dev/my-project/tracked.txt\e\\e[33mtracked.txt\e[0m\e]8;;\e\\e[2m(\e[32m+2\e[0m)\e[0m  \e[2m?1\e[0m
 \e[0m\e[2m词元 262k (输入: 6k, 输出: 2k, 缓存: 254k)\e[0m
-\e[0m\e[2m压缩次数: 1\e[0m
+\e[0m\e[2m缓存命中\e[0m 88.9% │ \e[2m压缩次数: 1\e[0m
 
 ### compact/typical
 \e[0m\e[36m[Opus 5.5]\e[0m \e[32m█████\e[2m░░░░░\e[0m \e[32m45%\e[0m | \e[33mmy-project\e[0m | \e[2mUsage\e[0m \e[94m███\e[2m░░░░░░░\e[0m \e[94m25%\e[0m (1h 30m / 5h)
