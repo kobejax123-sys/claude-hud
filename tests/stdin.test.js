@@ -111,6 +111,14 @@ test('model name, source, and format', () => {
   assert.equal(formatModelName('Claude Opus 5.5 (1M context)', 'compact'), 'Claude Opus 5.5');
   assert.equal(formatModelName('Claude Opus 5.5 (1M context)', 'short'), 'Opus 5.5');
   assert.equal(formatModelName('Opus', 'short', 'Mine'), 'Mine');
+
+  // Proxied models carry a trailing bracketed size marker instead.
+  assert.equal(formatModelName('deepseek-v4.1-flash-expires-on-0910[1m]', 'compact'), 'deepseek-v4.1-flash-expires-on-0910');
+  assert.equal(formatModelName('Model [1M]', 'compact'), 'Model');
+  assert.equal(formatModelName('Model[200k]', 'short'), 'Model');
+  assert.equal(formatModelName('Model[1m]', 'full'), 'Model[1m]');
+  assert.equal(formatModelName('Model [beta]', 'compact'), 'Model [beta]', 'a non-size bracket stays');
+  assert.equal(formatModelName('[1m] Model', 'compact'), '[1m] Model', 'only a trailing marker goes');
 });
 
 test('getProviderLabel detects routed and enterprise providers', () => {
