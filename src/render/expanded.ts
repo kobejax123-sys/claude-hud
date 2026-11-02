@@ -145,8 +145,9 @@ export function expandedLines(f: Frame): string[] {
     const tokens = elementLine(f, 'sessionTokens');
     if (tokens) lines.push(tokens);
   }
-  const compactions = compactionsPart(f);
-  if (compactions) lines.push(compactions);
+  // Until cacheHitRate is placed in elementOrder, it shares the compactions line.
+  const stats = [order.includes('cacheHitRate') ? null : cacheHitRateLine(f), compactionsPart(f)].filter(Boolean);
+  if (stats.length > 0) lines.push(stats.join(' │ '));
 
   const firstActivity = rows.findIndex(({ activity }) => activity);
   if (f.config?.showSeparators && firstActivity > 0) {
