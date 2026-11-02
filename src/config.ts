@@ -81,6 +81,8 @@ export type HudColorValue = HudColorName | number | string;
 
 export interface HudColorOverrides {
   context: HudColorValue;
+  // Colors the token parenthetical of `contextValue: "both"` on its own; null keeps the health color.
+  contextTokens: HudColorValue | null;
   usage: HudColorValue;
   warning: HudColorValue;
   usageWarning: HudColorValue;
@@ -301,6 +303,7 @@ export const DEFAULT_CONFIG: HudConfig = {
   },
   colors: {
     context: 'green',
+    contextTokens: null,
     usage: 'brightBlue',
     warning: 'yellow',
     usageWarning: 'brightMagenta',
@@ -427,6 +430,8 @@ const RULES: Record<string, Rule> = {
   'display.autoCompactWindow': rule('a positive whole number, or null', (value) => (Number.isInteger(value) && (value as number) > 0 ? value : null)),
   'colors.barFilled': barChar,
   'colors.barEmpty': barChar,
+  // null keeps the token parenthetical on the context health color.
+  'colors.contextTokens': rule(`${color.accepts}, or null`, (value, fallback) => (value === null ? null : color(value, fallback))),
   'colors.*': color,
 };
 

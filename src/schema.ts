@@ -94,6 +94,7 @@ export const DESCRIPTIONS: Record<string, string> = {
   "display.customLine": "Custom text shown on the first line (80 characters max)",
   "display.customLinePosition": "Put the custom text at the start or the end of the first line",
   "colors.context": "Base color for the context bar and context percentage",
+  "colors.contextTokens": "Color for only the `(116k/1.0M)` token part of `display.contextValue: \"both\"`; null keeps it on the context color",
   "colors.usage": "Base color for usage bars and percentages below warning thresholds",
   "colors.warning": "Warning color for context thresholds and usage warning text",
   "colors.usageWarning": "Warning color for usage bars and percentages near their threshold",

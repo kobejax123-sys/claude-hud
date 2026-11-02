@@ -1,5 +1,5 @@
 import type { Frame } from './frame.ts';
-import { coloredBar, getContextColor, label, RESET } from './colors.ts';
+import { coloredBar, colorizeContextValue, getContextColor, label } from './colors.ts';
 import { t } from '../i18n/index.ts';
 import { formatContextValue, formatTokens } from '../utils/format.ts';
 import { contextUsage } from './derive.ts';
@@ -17,7 +17,11 @@ export function contextBarAndValue(f: Frame): { bar: string | null; value: strin
   const display = f.config?.display;
   const colors = f.config?.colors;
   const context = contextUsage(f);
-  const value = `${getContextColor(context.percent, colors, thresholds(f))}${formatContextValue(context, display?.contextValue ?? 'percent')}${RESET}`;
+  const value = colorizeContextValue(
+    formatContextValue(context, display?.contextValue ?? 'percent'),
+    getContextColor(context.percent, colors, thresholds(f)),
+    colors,
+  );
   const bar = display?.showContextBar !== false
     ? coloredBar(context.percent, f.barWidth, colors, thresholds(f))
     : null;
