@@ -36,7 +36,7 @@ function hexToAnsi(hex: string): string {
  * Resolve a color value to an ANSI escape sequence.
  * Accepts named presets, 256-color indices (0-255), or hex strings (#rrggbb).
  */
-function resolveAnsi(value: HudColorValue | undefined, fallback: string): string {
+function resolveAnsi(value: HudColorValue | null | undefined, fallback: string): string {
   if (value === undefined || value === null) {
     return fallback;
   }
@@ -128,6 +128,21 @@ export function getContextColor(
   if (percent >= critical) return resolveAnsi(colors?.critical, RED);
   if (percent >= warning) return resolveAnsi(colors?.warning, YELLOW);
   return resolveAnsi(colors?.context, GREEN);
+}
+
+/**
+ * A formatted context value on its health color. With `colors.contextTokens` set,
+ * the `(116k/1.0M)` parenthetical of `contextValue: "both"` takes that color instead.
+ */
+export function colorizeContextValue(
+  value: string,
+  healthColor: string,
+  colors?: Partial<HudColorOverrides>,
+): string {
+  const splitAt = value.indexOf(' (');
+  const tokensColor = colors?.contextTokens;
+  if (splitAt < 0 || tokensColor === undefined || tokensColor === null) return colorize(value, healthColor);
+  return `${colorize(value.slice(0, splitAt), healthColor)} ${colorize(value.slice(splitAt + 1), resolveAnsi(tokensColor, healthColor))}`;
 }
 
 /**

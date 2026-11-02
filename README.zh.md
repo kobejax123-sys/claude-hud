@@ -185,6 +185,7 @@ Claude HUD 是一个[状态栏](https://code.claude.com/docs/en/statusline)命�
 | `display.customLine` | string | `""` | 显示在第一行的自定义文字（最多 80 个字符） |
 | `display.customLinePosition` | `first` \| `last` | `last` | 自定义文字放在第一行的开头还是结尾 |
 | `colors.context` | 颜色值 | `green` | 上下文进度条和百分比的基础颜色 |
+| `colors.contextTokens` | 颜色值 | `null` | 只给 `contextValue: "both"` 的 token 括号部分上色，如 `(116k/1.0M)`，进度条和百分比仍跟随健康色。`null` 表示括号也用健康色 |
 | `colors.usage` | 颜色值 | `brightBlue` | 使用率进度条和低于警告阈值时百分比的颜色 |
 | `colors.warning` | 颜色值 | `yellow` | 上下文阈值和使用率警告文本的警告颜色 |
 | `colors.usageWarning` | 颜色值 | `brightMagenta` | 使用率进度条和接近阈值时百分比的警告颜色 |

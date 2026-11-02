@@ -185,6 +185,7 @@ Labels are available in English (the default), Simplified Chinese (`zh-Hans`, al
 | `display.customLine` | string | `""` | Custom text shown on the first line (80 characters max) |
 | `display.customLinePosition` | `first` \| `last` | `last` | Put the custom text at the start or the end of the first line |
 | `colors.context` | color value | `green` | Base color for the context bar and context percentage |
+| `colors.contextTokens` | color value | `null` | Colors only the token parenthetical of `contextValue: "both"`, e.g. `(116k/1.0M)`, leaving the bar and percentage on their health color. `null` keeps the parenthetical on the health color too |
 | `colors.usage` | color value | `brightBlue` | Base color for usage bars and percentages below warning thresholds |
 | `colors.warning` | color value | `yellow` | Warning color for context thresholds and usage warning text |
 | `colors.usageWarning` | color value | `brightMagenta` | Warning color for usage bars and percentages near their threshold |
