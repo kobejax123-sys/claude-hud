@@ -4,6 +4,16 @@ All notable changes to Claude HUD will be documented in this file.
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-02
+
+### Added
+- `display.showSpeed` reads the output speed from Claude Code's OpenTelemetry `api_request` events: output tokens over the decode window (request time minus the wait for the first token), summed over the turn in progress. Turn wait time no longer counts against the rate, so short replies no longer read far below their real speed. Off by default; needs `CLAUDE_CODE_ENABLE_TELEMETRY=1`.
+- `display.showCacheHitRate` shows what share of the latest request's input came from the prompt cache: cache reads over input plus cache writes plus cache reads. Shows `--` until the session has cache activity. Off by default, and shares the compaction line.
+- `colors.contextTokens` colors the token count in the context value on its own, so health coloring can cover the percentage while the `(63k/1.0M)` part stays a separate color.
+
+### Fixed
+- Model names no longer keep the bracketed context-window suffix, so `Opus 5.5 [1m]` shows as `Opus 5.5`.
+
 ## [0.14.2] - 2026-11-02
 
 ### Fixed
