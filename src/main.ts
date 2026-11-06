@@ -29,7 +29,7 @@ function needsTranscript(config: HudConfig, stdin: StdinData): boolean {
   const d = config.display;
   return d.showTools || d.showSkills || d.showMcp || d.showAgents || d.showTodos
     || d.showConfigCounts || d.showSessionTokens || d.showCompactions || d.showAdvisor
-    || d.showSessionStartDate || d.showLastResponseAt || d.showEffortLevel
+    || d.showSessionStartDate || d.showLastResponseAt || d.showEffortLevel || d.showSpeed
     || d.modelSource !== "stdin"
     || isContextUnreported(stdin);
 }
@@ -72,6 +72,7 @@ export async function renderStdin(stdin: StdinData, config: HudConfig, { ask, fi
   if (display.showMemoryUsage && config.lineLayout === "expanded") facts.push("memory");
   if (display.showUsage && display.externalUsagePath) facts.push("usage.read");
   if (display.externalUsageWritePath && stdinUsage) facts.push("usage.target");
+  if (display.showSpeed) facts.push("otel.speed");
 
   const readTranscript = async (): Promise<TranscriptData> => {
     const data = await parseTranscript(paths.transcript ?? "", dataDir);
@@ -94,7 +95,7 @@ export async function renderStdin(stdin: StdinData, config: HudConfig, { ask, fi
       ? getCostTotals(stdin, { allowRoutedCost: display.showRoutedCost, sevenDayResetAt: usageData?.sevenDayResetAt ?? null },
         { dataDir: () => dataDir, now: () => now })
       : null,
-    outputSpeed: display.showSpeed ? getOutputSpeed(stdin, dataDir) : null,
+    outputSpeed: display.showSpeed ? getOutputSpeed(answers["otel.speed"], transcript) : null,
     gitStatus,
     usageData,
     memoryUsage: "memory" in answers ? getMemoryUsage(readMemory(answers.memory as MemoryFacts)) : null,

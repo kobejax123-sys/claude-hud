@@ -304,7 +304,7 @@ async function runCommand(name, args, { paths, env }) {
     }
     // The last render's input, saved by hud.mjs from Claude Code, so preview and report can replay it.
     const stdin = facts.heartbeat?.stdin ?? null;
-    const probes = collector.createProbes({ cwd: stdin?.cwd, argv: [], env, usage: collector.usagePaths(paths, env) });
+    const probes = collector.createProbes({ cwd: stdin?.cwd, argv: [], env, usage: collector.usagePaths(paths, env), paths, sessionId: stdin?.session_id });
     const output = await runCage({ stdin, env, probes, command: { name, args, facts } });
     // Only `set`, which Claude Code asks the user about, may change config; the rest are pre-approved.
     if (name === 'set' && output.config) collector.writeConfig(paths, output.config);
@@ -333,7 +333,7 @@ export async function main({ argv = process.argv, env = process.env } = {}) {
     stdin = await readStdin();
     const setting = collector.userSettings(paths);
     const usage = collector.usagePaths(paths, env, setting);
-    const probes = collector.createProbes({ cwd: stdin?.cwd, argv, env, usage, early: collector.probesToStart(setting) });
+    const probes = collector.createProbes({ cwd: stdin?.cwd, argv, env, usage, early: collector.probesToStart(setting), paths, sessionId: stdin?.session_id });
     const output = await runCage({ stdin, now, probes, env });
     if (output.snapshot) collector.writeUsageSnapshot(usage.write, output.snapshot);
     print(output.lines, stdin);

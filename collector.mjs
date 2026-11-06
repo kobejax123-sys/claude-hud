@@ -7,6 +7,7 @@ import { exec, execFile, spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import nodeModule from 'node:module';
+import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -458,6 +459,194 @@ const run = (file, args, options) => new Promise((resolve) => {
   execFile(file, args, { encoding: 'utf8', windowsHide: true, shell: false, ...options }, (error, stdout) => resolve(error ? null : stdout));
 });
 
+// ---- display.showSpeed: the OTLP receiver (otel-receiver.mjs) and the samples it keeps.
+
+// Covers several hundred requests at ~120 bytes a sample. The receiver trims files to no less.
+export const SPEED_TAIL_BYTES = 64 * 1024;
+const OTLP_PORT = 4318;
+const RECEIVER_RETENTION_DAYS = 7;
+// A receiver that can't start (an unwritable directory, a refused flag) would otherwise be
+// started again on every refresh while tokens stream.
+const SPAWN_ATTEMPT_LIMIT = 3;
+const SPAWN_BACKOFF_MS = 5 * 60 * 1000;
+// Loopback connects complete or are refused at once; this only bounds a pathological case.
+const PORT_PROBE_TIMEOUT_MS = 200;
+// The receiver binds 127.0.0.1 only, so ::1 isn't one of its hosts.
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost']);
+const FALSY = new Set(['', '0', 'false', 'off', 'no']);
+
+export function isTelemetryEnabled(env = process.env) {
+  const value = env.CLAUDE_CODE_ENABLE_TELEMETRY?.trim().toLowerCase();
+  return value !== undefined && !FALSY.has(value);
+}
+
+// The port written in the endpoint, or null. url.port can't say: it blanks a scheme-default port.
+function explicitPort(raw) {
+  const authority = /^[A-Za-z][A-Za-z0-9+.-]*:\/\/([^/?#]*)/.exec(raw)?.[1];
+  const colon = authority?.lastIndexOf(':') ?? -1;
+  const digits = colon < 0 ? '' : authority.slice(colon + 1);
+  return /^\d+$/.test(digits) ? Number(digits) : null;
+}
+
+/**
+ * Where Claude Code exports logs: the environment, else the env block of the user's own settings
+ * (Claude Code drops OTEL_* from the statusLine's environment, so that's where it shows). A
+ * project's settings are never read: a repo must not choose what the HUD listens on. Unset means
+ * the exporter's own default, 127.0.0.1:4318. Null for an endpoint that doesn't parse.
+ */
+export function otlpEndpoint(paths, env = process.env) {
+  let raw = env.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT?.trim() || env.OTEL_EXPORTER_OTLP_ENDPOINT?.trim() || '';
+  if (!raw) {
+    for (const file of [path.join(paths.configDir, 'settings.json'), path.join(paths.configDir, 'settings.local.json')]) {
+      const block = readJsonObject(file, 1024 * 1024)?.env;
+      // Signal-specific wins over the generic one; the local file wins over the shared one.
+      const value = [block?.OTEL_EXPORTER_OTLP_LOGS_ENDPOINT, block?.OTEL_EXPORTER_OTLP_ENDPOINT].find((v) => typeof v === 'string' && v.trim());
+      if (value) raw = value.trim();
+    }
+  }
+  if (!raw) return { port: OTLP_PORT, loopback: true };
+  let url;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  const port = explicitPort(raw) ?? (url.protocol === 'https:' ? 443 : OTLP_PORT);
+  return Number.isInteger(port) && port > 0 && port <= 65535 ? { port, loopback: LOOPBACK_HOSTS.has(url.hostname) } : null;
+}
+
+/** True when something accepts on the loopback port. A connect that only times out counts as in use. */
+export function isPortInUse(port, timeoutMs = PORT_PROBE_TIMEOUT_MS) {
+  return new Promise((resolve) => {
+    const socket = net.connect({ port, host: '127.0.0.1' });
+    let settled = false;
+    const finish = (inUse) => {
+      if (settled) return;
+      settled = true;
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(inUse);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(true));
+    socket.once('error', () => finish(false));
+  });
+}
+
+/**
+ * True when `pid` runs `entry`. Pids are recycled, so a pidfile left by a receiver killed outright
+ * can name a stranger; only Linux shows another process's command line, and elsewhere the answer
+ * is no, which leaves an old receiver serving rather than killing an unrelated process.
+ */
+export function isReceiverProcess(pid, entry, platform = process.platform) {
+  if (platform !== 'linux') return false;
+  try {
+    return fs.readFileSync(`/proc/${pid}/cmdline`, 'utf8').split('\0').some((arg) => arg !== '' && samePath(arg, entry));
+  } catch {
+    return false;
+  }
+}
+
+/** The receiver's command line: caged to its own file and directory (see otel-receiver.mjs). */
+export function receiverArgs(entry, dir, port, version = process.versions.node) {
+  // Node 25 added a network permission that --permission denies unless granted.
+  const allowNet = Number(String(version).split('.')[0]) >= 25 ? ['--allow-net'] : [];
+  return ['--permission', `--allow-fs-read=${entry}`, `--allow-fs-read=${dir}`, `--allow-fs-write=${dir}`, ...allowNet,
+    entry, dir, String(port), String(RECEIVER_RETENTION_DAYS)];
+}
+
+function readSpawnState(file) {
+  const s = readJsonObject(file);
+  return s && Number.isInteger(s.attempts) && s.attempts >= 0 && Number.isFinite(s.lastAttemptMs) ? s : null;
+}
+
+/**
+ * Makes sure a receiver from this install serves the loopback endpoint. Never throws; the render
+ * doesn't wait for it, and hud.mjs's process stays up until it settles. A receiver left by another
+ * version is replaced: the pidfile names the file it runs.
+ */
+export async function ensureReceiver({ otel, dir, statePath, endpoint, now = Date.now(),
+  spawnImpl = spawn, portInUse = isPortInUse, isReceiver = isReceiverProcess, env = process.env }) {
+  if (!endpoint?.loopback) return;
+  const pidPath = path.join(dir, 'receiver.pid');
+  const existing = otel.readPidRecord(pidPath);
+  if (existing && otel.isProcessAlive(existing.pid)) {
+    if (existing.entry === otel.SELF && existing.port === endpoint.port) {
+      // A serving receiver clears the failure record, so a one-off failure never adds up to a backoff.
+      fs.rmSync(statePath, { force: true });
+      return;
+    }
+    if (isReceiver(existing.pid, existing.entry)) {
+      try {
+        process.kill(existing.pid, 'SIGTERM');
+      } catch { /* already gone */ }
+    }
+    fs.rmSync(pidPath, { force: true });
+  }
+  const state = readSpawnState(statePath);
+  if (state && state.attempts >= SPAWN_ATTEMPT_LIMIT && now - state.lastAttemptMs < SPAWN_BACKOFF_MS) return;
+  // A receiver whose pidfile was lost, one still shutting down, or the user's own collector: a new
+  // one could only die with EADDRINUSE.
+  if (await portInUse(endpoint.port)) return;
+  try {
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    const realDir = fs.realpathSync(dir);
+    const child = spawnImpl(process.execPath, receiverArgs(otel.SELF, realDir, endpoint.port), {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: true,
+      // Nothing of the user's environment: the receiver needs none of it and lives on.
+      env: process.platform === 'win32' && env.SystemRoot ? { SystemRoot: env.SystemRoot } : {},
+    });
+    // An async spawn failure (EAGAIN, EMFILE) is an 'error' event; unheard, it would crash the render.
+    child.on('error', () => {});
+    child.unref();
+    fs.writeFileSync(statePath, JSON.stringify({ attempts: (state?.attempts ?? 0) + 1, lastAttemptMs: now }), { mode: 0o600 });
+  } catch { /* best effort; the next refresh tries again */ }
+}
+
+/**
+ * The last `maxBytes` of a file as whole lines, or null. The byte before the window says whether
+ * its first line is whole, so a window that starts on a line boundary keeps that line.
+ */
+export function readTail(file, maxBytes = SPEED_TAIL_BYTES) {
+  let fd;
+  try {
+    fd = fs.openSync(file, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0));
+  } catch {
+    return null;
+  }
+  try {
+    const stat = fs.fstatSync(fd);
+    if (!stat.isFile() || stat.size === 0) return null;
+    const start = Math.max(0, stat.size - maxBytes);
+    const buf = Buffer.alloc(stat.size - start);
+    fs.readSync(fd, buf, 0, buf.length, start);
+    let text = buf.toString('utf8');
+    if (start > 0) {
+      const before = Buffer.alloc(1);
+      fs.readSync(fd, before, 0, 1, start - 1);
+      if (before[0] !== 0x0a) text = text.slice(text.indexOf('\n') + 1);
+    }
+    return text;
+  } catch {
+    return null;
+  } finally {
+    fs.closeSync(fd);
+  }
+}
+
+/** The `otel.speed` probe: starts the receiver if needed, and answers with the session's recent samples. */
+export async function speedSamples({ paths, sessionId, env = process.env, ensure = ensureReceiver }) {
+  if (!paths || !isTelemetryEnabled(env)) return null;
+  // Loaded only for a render that shows speed: it brings node:http.
+  const otel = await import('./otel-receiver.mjs');
+  const dir = path.join(paths.hudDir, 'otel');
+  void ensure({ otel, dir, statePath: path.join(paths.hudDir, 'otel-spawn.json'), endpoint: otlpEndpoint(paths, env), env }).catch(() => {});
+  return otel.isValidSessionId(sessionId) ? readTail(path.join(dir, `${sessionId}.jsonl`)) : null;
+}
+
 // ---- `hud` subcommands: what logic can't look up from inside the cage, and the one file `set` writes.
 
 /** Type stripping, --permission and module.registerHooks are all unflagged from Node 22.18. */
@@ -566,7 +755,7 @@ function replaceFile(file, text) {
 // ---- The menu logic picks from
 
 /** Every probe logic may ask for, bound to this render's inputs. Each resolves to plain JSON. */
-export function createProbes({ cwd, argv = process.argv, env = process.env, usage = { read: null, write: null }, early = [] }) {
+export function createProbes({ cwd, argv = process.argv, env = process.env, usage = { read: null, write: null }, early = [], paths = null, sessionId = null }) {
   const extraCmd = parseExtraCmdArg(argv, env);
   const extra = extraCmd ? runExtraCmd(extraCmd) : Promise.resolve(null);
   let overrides;
@@ -609,6 +798,8 @@ export function createProbes({ cwd, argv = process.argv, env = process.env, usag
       }
       return readText(usage.write) ?? { text: null, mtimeMs: null };
     },
+    // display.showSpeed: the tail of this session's sample file, or null when telemetry is off.
+    'otel.speed': () => speedSamples({ paths, sessionId, env }),
   };
   // Each probe runs at most once per render, whether started early or asked for.
   const started = new Map();

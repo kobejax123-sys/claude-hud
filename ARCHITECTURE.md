@@ -15,6 +15,8 @@ folder, the network, a key, posting, merging. Everything else is logic.
  (owner)   │   per-run and daily token caps              │    │ collector.mjs: every path, every program   │
            │ act.mjs: reply | label | close | propose,   │    │   but Node (git, jj, vm_stat, extra cmd)   │
            │   and the `gate` check                      │    │ fence.mjs + node --permission: the cage    │
+           │                                             │    │ otel-receiver.mjs: the showSpeed listener, │
+           │                                             │    │   on 127.0.0.1, caged to its otel/ folder  │
            │                                             │    │ install.mjs: writes the statusLine setting │
            │                                             │    │ launcher + stubs: run the newest install   │
            │                                             │    │ skills/hud: Claude runs 4 read-only verbs  │
@@ -64,8 +66,8 @@ every launcher imports under Bun forwards to it; inside the cage it can't load a
 flowchart TD
   stub["launcher stub: index.ts"]
   entry["entry: main.ts channel.ts commands.ts schema.ts"]
-  read["read files: config.ts config-reader.ts transcript.ts auth.ts external-usage.ts daily-cost.ts speed.ts"]
-  parse["parse stdin and probe answers: stdin.ts model-source.ts effort.ts cost.ts usage-pace.ts types.ts git.ts jj.ts memory.ts extra-cmd.ts"]
+  read["read files: config.ts config-reader.ts transcript.ts auth.ts external-usage.ts daily-cost.ts"]
+  parse["parse stdin and probe answers: stdin.ts model-source.ts effort.ts cost.ts usage-pace.ts types.ts git.ts jj.ts memory.ts extra-cmd.ts speed.ts"]
   render["render lines: render/**"]
   shared["shared: utils/** i18n/** debug.ts"]
 

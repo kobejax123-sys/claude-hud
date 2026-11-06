@@ -1,0 +1,28 @@
+{
+  "note": "display.showSpeed with telemetry off: the otel.speed probe answers null and the segment holds its place as out: --, with no estimate.",
+  "columns": 100,
+  "config": {
+    "display": {
+      "showSpeed": true
+    }
+  },
+  "stdin": {
+    "model": {
+      "display_name": "Opus 5.5"
+    },
+    "context_window": {
+      "used_percentage": 12,
+      "context_window_size": 200000
+    },
+    "session_id": "sess-speed"
+  },
+  "facts": {
+    "otel.speed": null
+  },
+  "expect": [
+    "exit 0",
+    "contains out: --",
+    "lacks tps",
+    "no line wider than columns"
+  ]
+}

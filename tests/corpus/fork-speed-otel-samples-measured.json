@@ -1,0 +1,30 @@
+{
+  "note": "display.showSpeed reads the receiver's OpenTelemetry samples from the otel.speed probe: main-chain output over decode time. A subagent, an overflowing count, an escape in a field it doesn't show and a cut-off last line are left out.",
+  "columns": 100,
+  "config": {
+    "display": {
+      "showSpeed": true
+    }
+  },
+  "stdin": {
+    "model": {
+      "display_name": "Opus 5.5"
+    },
+    "context_window": {
+      "used_percentage": 12,
+      "context_window_size": 200000
+    },
+    "session_id": "sess-speed"
+  },
+  "facts": {
+    "otel.speed": "{\"ts\": \"2026-09-11T02:00:00.000Z\", \"querySource\": \"repl_main_thread\", \"outputTokens\": 1000, \"durationMs\": 6000, \"ttftMs\": 1000}\n{\"ts\": \"2026-09-11T02:00:30.000Z\", \"querySource\": \"agent:explore\", \"outputTokens\": 9000, \"durationMs\": 2000, \"ttftMs\": 1000}\n{\"ts\": \"2026-09-11T02:01:00.000Z\", \"model\": \"\\u001b]0;evil\\u0007\", \"outputTokens\": 1e+308, \"durationMs\": 1501, \"ttftMs\": 1000}\n{\"ts\":\"2026-09-11T02:02:00.000Z\",\"outputTokens\":10"
+  },
+  "expect": [
+    "exit 0",
+    "contains out: 200 tps",
+    "lacks Infinity",
+    "lacks NaN",
+    "only safe escapes",
+    "no line wider than columns"
+  ]
+}
