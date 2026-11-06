@@ -4,6 +4,16 @@ All notable changes to Claude HUD will be documented in this file.
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-06
+
+### Added
+- `display.showSpeed` measures the output speed from Claude Code's OpenTelemetry `api_request` events: output tokens over the decode window (request time minus the wait for the first token), summed over the main conversation's requests in the turn in progress, and held between turns. Shows `out: 85 tps`, or `out: --` until a request is measured. Needs `CLAUDE_CODE_ENABLE_TELEMETRY=1` and a loopback HTTP/JSON logs endpoint; the HUD then starts a receiver there, `otel-receiver.mjs`, which runs under `node --permission` and can read and write only `plugins/claude-hud/otel/`. A project's settings never choose its endpoint.
+- `display.showCacheHitRate` shows what share of the latest request's input came from the prompt cache: cache reads over input plus cache writes plus cache reads. Shows `--` until the session has cache activity, and shares the compaction line until placed in `elementOrder`.
+- `colors.contextTokens` colors the `(116k/1.0M)` part of `contextValue: "both"` on its own, so the percentage keeps its health color.
+
+### Fixed
+- `modelFormat: compact` and `short` drop a trailing bracketed context-window marker such as `[1m]`, as proxied models report it.
+
 ## [0.15.1] - 2026-11-03
 
 ### Fixed
